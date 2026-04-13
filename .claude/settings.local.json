@@ -12,7 +12,11 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(node_modules/.bin/next build:*)",
       "Bash(git -C c:/Users/alkin/projects/SahurLock diff HEAD --stat)",
-      "Bash(git -C c:/Users/alkin/projects/SahurLock log --oneline -3)"
+      "Bash(git -C c:/Users/alkin/projects/SahurLock log --oneline -3)",
+      "Bash(git -C c:/Users/alkin/projects/SahurLock status --short)",
+      "Bash(grep -v '^\\\\.git$')",
+      "Bash(grep -v '^node_modules$')",
+      "Bash(grep -v '^\\\\.next$')"
     ]
   }
 }

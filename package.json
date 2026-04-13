@@ -2,6 +2,15 @@
   "name": "sahurlock",
   "version": "0.1.0",
   "private": true,
+  "eslintConfig": {
+    "extends": ["next/core-web-vitals"]
+  },
+  "postcss": {
+    "plugins": {
+      "tailwindcss": { "config": "./config/tailwind.config.ts" },
+      "autoprefixer": {}
+    }
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
