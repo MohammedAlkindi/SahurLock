@@ -17,9 +17,8 @@ export const getDerivedState = ({
 }: TransitionInput): AppState => {
   if (onBreak) return 'break';
   if (violationActive) return 'violated';
-  if (!attention) return 'focused';
-
-  if (attention.attention === 'uncertain') return 'warning';
-  if (offscreenMs >= thresholdMs * 0.5 && (attention.attention === 'away' || !attention.facePresent)) return 'warning';
+  if (!attention || attention.attention === 'uncertain') return 'warning';
+  if (attention.attention === 'warning') return 'warning';
+  if (attention.attention === 'offscreen' && offscreenMs >= thresholdMs * 0.5) return 'warning';
   return 'focused';
 };
