@@ -19,7 +19,8 @@ const DEFAULTS: SessionConfig = {
   offscreenThresholdSec: 6,
   breakLimit: 2,
   breakDurationSec: 60,
-  punishmentEnabled: true
+  punishmentEnabled: true,
+  punishmentMedia: '/media/sahur.mp4'
 };
 
 const STABILIZE_MS = 2000;
@@ -392,7 +393,7 @@ export default function HomePage() {
         </section>
       </div>
 
-      <video ref={audioRef} className="hidden" src="/media/sahur.mp4" preload="auto" playsInline loop />
+      <video ref={audioRef} className="hidden" src={config.punishmentMedia} preload="auto" playsInline loop />
 
       <ViolationOverlay visible={appState === 'violated'} />
 

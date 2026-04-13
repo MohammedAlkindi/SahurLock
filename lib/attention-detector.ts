@@ -1,4 +1,4 @@
-import { AttentionReading, BaselinePose, CalibrationReport, PixelBox } from '@/lib/types';
+import { AttentionReading, BaselinePose, CalibrationReport, EyeData, PixelBox } from '@/lib/types';
 
 interface Landmark {
   x: number;
@@ -26,8 +26,15 @@ const INPUT_SIZE = 320;
 const ROI_PADDING = 1.3;
 const MIN_CALIBRATION_DETECTION_RATE = 0.65;
 const MIN_CALIBRATION_CONFIDENCE = 0.55;
-const LEFT_EYE = [33, 133, 159, 145, 468, 469, 470, 471, 472] as const;
+const LANDMARK_SMOOTH = 0.38; // EMA alpha for landmark smoothing (lower = smoother)
+
+// Key eye landmarks: [outer, inner, top, bottom, iris_center, iris_top, iris_bottom, iris_right, iris_left]
+const LEFT_EYE  = [33,  133, 159, 145, 468, 469, 470, 471, 472] as const;
 const RIGHT_EYE = [362, 263, 386, 374, 473, 474, 475, 476, 477] as const;
+
+// Full eyelid contour landmarks (MediaPipe Face Mesh v2 with refineLandmarks=true)
+const LEFT_CONTOUR  = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
+const RIGHT_CONTOUR = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -56,6 +63,7 @@ export class AttentionDetector {
   private lightingCtx: CanvasRenderingContext2D;
   private roi: PixelBox | null = null;
   private previousLandmarks: Landmark[] | null = null;
+  private smoothedLandmarks: Landmark[] | null = null;
   private manualZoom = 1;
 
   constructor() {
@@ -143,8 +151,9 @@ export class AttentionDetector {
     }
     const cx = this.roi.x + this.roi.width / 2;
     const cy = this.roi.y + this.roi.height / 2;
-    const zoomedW = clamp(this.roi.width * ROI_PADDING * this.manualZoom, 120, frameW);
-    const zoomedH = clamp(this.roi.height * ROI_PADDING * this.manualZoom, 120, frameH);
+    // Higher zoom = smaller ROI = face fills more of the analysis canvas = better iris detection
+    const zoomedW = clamp(this.roi.width * ROI_PADDING / this.manualZoom, 80, frameW);
+    const zoomedH = clamp(this.roi.height * ROI_PADDING / this.manualZoom, 80, frameH);
     return {
       x: clamp(cx - zoomedW / 2, 0, frameW - zoomedW),
       y: clamp(cy - zoomedH / 2, 0, frameH - zoomedH),
@@ -153,44 +162,135 @@ export class AttentionDetector {
     };
   }
 
-  private getEyeMetrics(mapped: Landmark[]) {
-    const leftInner = mapped[LEFT_EYE[1]] ?? mapped[LEFT_EYE[0]];
-    const leftOuter = mapped[LEFT_EYE[0]] ?? mapped[LEFT_EYE[1]];
-    const rightInner = mapped[RIGHT_EYE[0]] ?? mapped[RIGHT_EYE[1]];
-    const rightOuter = mapped[RIGHT_EYE[1]] ?? mapped[RIGHT_EYE[0]];
+  private getEyeMetrics(raw: Landmark[], vis: Landmark[]) {
+    // -- Detection uses raw landmarks for accuracy --
+    const lOuter = raw[LEFT_EYE[0]];
+    const lInner = raw[LEFT_EYE[1]];
+    const lTop   = raw[LEFT_EYE[2]];
+    const lBot   = raw[LEFT_EYE[3]];
+    const lIris  = raw[LEFT_EYE[4]]; // iris center 468
 
-    const leftTop = mapped[LEFT_EYE[2]] ?? mapped[LEFT_EYE[0]];
-    const leftBottom = mapped[LEFT_EYE[3]] ?? mapped[LEFT_EYE[1]];
-    const rightTop = mapped[RIGHT_EYE[2]] ?? mapped[RIGHT_EYE[0]];
-    const rightBottom = mapped[RIGHT_EYE[3]] ?? mapped[RIGHT_EYE[1]];
+    const rOuter = raw[RIGHT_EYE[0]];
+    const rInner = raw[RIGHT_EYE[1]];
+    const rTop   = raw[RIGHT_EYE[2]];
+    const rBot   = raw[RIGHT_EYE[3]];
+    const rIris  = raw[RIGHT_EYE[4]]; // iris center 473
 
-    const leftPupil = mapped[LEFT_EYE[8]] ?? mapped[LEFT_EYE[0]];
-    const rightPupil = mapped[RIGHT_EYE[8]] ?? mapped[RIGHT_EYE[0]];
+    const lW = Math.max(Math.abs(lOuter.x - lInner.x), 0.001);
+    const rW = Math.max(Math.abs(rOuter.x - rInner.x), 0.001);
+    const lH = Math.max(Math.abs(lTop.y - lBot.y), 0.001);
+    const rH = Math.max(Math.abs(rTop.y - rBot.y), 0.001);
 
-    const leftCenterX = (leftInner.x + leftOuter.x) / 2;
-    const rightCenterX = (rightInner.x + rightOuter.x) / 2;
-    const leftCenterY = (leftTop.y + leftBottom.y) / 2;
-    const rightCenterY = (rightTop.y + rightBottom.y) / 2;
+    const lCX = (lOuter.x + lInner.x) / 2;
+    const lCY = (lTop.y  + lBot.y)   / 2;
+    const rCX = (rOuter.x + rInner.x) / 2;
+    const rCY = (rTop.y  + rBot.y)   / 2;
 
-    const eyeCenterX = (leftCenterX + rightCenterX) / 2;
-    const eyeCenterY = (leftCenterY + rightCenterY) / 2;
+    const leftOpenRatio  = lH / lW;
+    const rightOpenRatio = rH / rW;
+    const eyeOpenRatio   = (leftOpenRatio + rightOpenRatio) / 2;
 
-    const leftOpen = Math.abs(leftTop.y - leftBottom.y) / Math.max(Math.abs(leftInner.x - leftOuter.x), 0.001);
-    const rightOpen = Math.abs(rightTop.y - rightBottom.y) / Math.max(Math.abs(rightInner.x - rightOuter.x), 0.001);
-    const eyeOpenRatio = (leftOpen + rightOpen) / 2;
+    const gazeLX = (lIris.x - lCX) / lW;
+    const gazeRX = (rIris.x - rCX) / rW;
+    const gazeLY = (lIris.y - lCY) / lH;
+    const gazeRY = (rIris.y - rCY) / rH;
 
-    const gazeLeft = (leftPupil.x - leftCenterX) / Math.max(Math.abs(leftInner.x - leftOuter.x), 0.001);
-    const gazeRight = (rightPupil.x - rightCenterX) / Math.max(Math.abs(rightInner.x - rightOuter.x), 0.001);
-    const gazeUp =
-      ((leftPupil.y - leftCenterY) + (rightPupil.y - rightCenterY)) /
-      (Math.max(Math.abs(leftTop.y - leftBottom.y), 0.001) + Math.max(Math.abs(rightTop.y - rightBottom.y), 0.001));
+    const eyeCenterX = (lCX + rCX) / 2;
+    const eyeCenterY = (lCY + rCY) / 2;
+
+    // -- Visualization uses smoothed landmarks --
+    const vlOuter = vis[LEFT_EYE[0]];
+    const vlInner = vis[LEFT_EYE[1]];
+    const vlTop   = vis[LEFT_EYE[2]];
+    const vlBot   = vis[LEFT_EYE[3]];
+    const vlIris  = vis[LEFT_EYE[4]];
+    // Iris edge points for radius measurement
+    const vlIrisT = vis[LEFT_EYE[5]];
+    const vlIrisB = vis[LEFT_EYE[6]];
+    const vlIrisR = vis[LEFT_EYE[7]];
+    const vlIrisL = vis[LEFT_EYE[8]];
+
+    const vrOuter = vis[RIGHT_EYE[0]];
+    const vrInner = vis[RIGHT_EYE[1]];
+    const vrTop   = vis[RIGHT_EYE[2]];
+    const vrBot   = vis[RIGHT_EYE[3]];
+    const vrIris  = vis[RIGHT_EYE[4]];
+    const vrIrisT = vis[RIGHT_EYE[5]];
+    const vrIrisB = vis[RIGHT_EYE[6]];
+    const vrIrisR = vis[RIGHT_EYE[7]];
+    const vrIrisL = vis[RIGHT_EYE[8]];
+
+    const leftIrisRadius = (
+      Math.hypot(vlIrisT.x - vlIris.x, vlIrisT.y - vlIris.y) +
+      Math.hypot(vlIrisB.x - vlIris.x, vlIrisB.y - vlIris.y) +
+      Math.hypot(vlIrisR.x - vlIris.x, vlIrisR.y - vlIris.y) +
+      Math.hypot(vlIrisL.x - vlIris.x, vlIrisL.y - vlIris.y)
+    ) / 4;
+
+    const rightIrisRadius = (
+      Math.hypot(vrIrisT.x - vrIris.x, vrIrisT.y - vrIris.y) +
+      Math.hypot(vrIrisB.x - vrIris.x, vrIrisB.y - vrIris.y) +
+      Math.hypot(vrIrisR.x - vrIris.x, vrIrisR.y - vrIris.y) +
+      Math.hypot(vrIrisL.x - vrIris.x, vrIrisL.y - vrIris.y)
+    ) / 4;
+
+    const vlCX = (vlOuter.x + vlInner.x) / 2;
+    const vlCY = (vlTop.y   + vlBot.y)   / 2;
+    const vrCX = (vrOuter.x + vrInner.x) / 2;
+    const vrCY = (vrTop.y   + vrBot.y)   / 2;
+    const vlW  = Math.max(Math.abs(vlOuter.x - vlInner.x), 0.001);
+    const vrW  = Math.max(Math.abs(vrOuter.x - vrInner.x), 0.001);
+    const vlH  = Math.max(Math.abs(vlTop.y  - vlBot.y),   0.001);
+    const vrH  = Math.max(Math.abs(vrTop.y  - vrBot.y),   0.001);
+
+    // Gaze direction vectors per eye (iris offset from eye center, normalized)
+    const lGX = (vlIris.x - vlCX) / vlW;
+    const lGY = (vlIris.y - vlCY) / vlH;
+    const rGX = (vrIris.x - vrCX) / vrW;
+    const rGY = (vrIris.y - vrCY) / vrH;
+
+    // Full eyelid contours for drawing
+    const leftContour  = LEFT_CONTOUR.map(i  => ({ x: vis[i]?.x ?? 0, y: vis[i]?.y ?? 0 }));
+    const rightContour = RIGHT_CONTOUR.map(i => ({ x: vis[i]?.x ?? 0, y: vis[i]?.y ?? 0 }));
+
+    const lPad = vlH * 0.55;
+    const rPad = vrH * 0.55;
+
+    const leftEye: EyeData = {
+      x: Math.min(vlOuter.x, vlInner.x) - lPad,
+      y: vlTop.y - lPad,
+      width: vlW + lPad * 2,
+      height: vlH + lPad * 2,
+      irisX: vlIris.x,
+      irisY: vlIris.y,
+      irisRadius: leftIrisRadius,
+      gazeX: lGX,
+      gazeY: lGY,
+      openRatio: leftOpenRatio,
+      contour: leftContour
+    };
+    const rightEye: EyeData = {
+      x: Math.min(vrOuter.x, vrInner.x) - rPad,
+      y: vrTop.y - rPad,
+      width: vrW + rPad * 2,
+      height: vrH + rPad * 2,
+      irisX: vrIris.x,
+      irisY: vrIris.y,
+      irisRadius: rightIrisRadius,
+      gazeX: rGX,
+      gazeY: rGY,
+      openRatio: rightOpenRatio,
+      contour: rightContour
+    };
 
     return {
       eyeCenterX,
       eyeCenterY,
       eyeOpenRatio,
-      eyeDirectionX: (gazeLeft + gazeRight) / 2,
-      eyeDirectionY: gazeUp
+      eyeDirectionX: (gazeLX + gazeRX) / 2,
+      eyeDirectionY: (gazeLY + gazeRY) / 2,
+      leftEye,
+      rightEye
     };
   }
 
@@ -206,7 +306,9 @@ export class AttentionDetector {
         faceBox: null,
         eyeDirectionX: 0,
         eyeDirectionY: 0,
-        eyeOpenRatio: 0
+        eyeOpenRatio: 0,
+        leftEye: null,
+        rightEye: null
       };
     }
 
@@ -220,6 +322,7 @@ export class AttentionDetector {
     const lighting = this.getLightingGuidance(video);
 
     if (!landmarks || landmarks.length < 10) {
+      this.smoothedLandmarks = null; // reset so next detection starts fresh
       return {
         facePresent: false,
         confidence: 0,
@@ -234,7 +337,9 @@ export class AttentionDetector {
         faceBox: null,
         eyeDirectionX: 0,
         eyeDirectionY: 0,
-        eyeOpenRatio: 0
+        eyeOpenRatio: 0,
+        leftEye: null,
+        rightEye: null
       };
     }
 
@@ -243,6 +348,18 @@ export class AttentionDetector {
       y: (roi.y + p.y * roi.height) / frameH,
       z: p.z
     }));
+
+    // EMA smoothing for visualization — keeps iris/contour rendering stable
+    if (!this.smoothedLandmarks || this.smoothedLandmarks.length !== mapped.length) {
+      this.smoothedLandmarks = mapped.map(p => ({ ...p }));
+    } else {
+      for (let i = 0; i < mapped.length; i++) {
+        this.smoothedLandmarks[i].x += LANDMARK_SMOOTH * (mapped[i].x - this.smoothedLandmarks[i].x);
+        this.smoothedLandmarks[i].y += LANDMARK_SMOOTH * (mapped[i].y - this.smoothedLandmarks[i].y);
+        this.smoothedLandmarks[i].z  = mapped[i].z;
+      }
+    }
+    const vis = this.smoothedLandmarks;
 
     const xs = mapped.map((p) => p.x);
     const ys = mapped.map((p) => p.y);
@@ -280,7 +397,7 @@ export class AttentionDetector {
     }
     this.previousLandmarks = mapped;
 
-    const eyeMetrics = this.getEyeMetrics(mapped);
+    const eyeMetrics = this.getEyeMetrics(mapped, vis);
 
     const sizeScore = clamp((faceBox.width * faceBox.height) / (frameW * frameH * 0.12), 0, 1);
     const poseScore = clamp(1 - Math.abs(yaw) * 3 - Math.abs(pitch) * 2.5, 0, 1);
@@ -305,24 +422,33 @@ export class AttentionDetector {
         faceBox,
         eyeDirectionX: eyeMetrics.eyeDirectionX,
         eyeDirectionY: eyeMetrics.eyeDirectionY,
-        eyeOpenRatio: eyeMetrics.eyeOpenRatio
+        eyeOpenRatio: eyeMetrics.eyeOpenRatio,
+        leftEye: eyeMetrics.leftEye,
+        rightEye: eyeMetrics.rightEye
       };
     }
 
+    // Eye gaze delta: compare against calibration baseline (not absolute zero)
+    const eyeDeltaX = Math.abs(eyeMetrics.eyeDirectionX - baseline.eyeCenterX);
+    const eyeDeltaY = Math.abs(eyeMetrics.eyeDirectionY - baseline.eyeCenterY);
+    const eyesClosed = eyeMetrics.eyeOpenRatio < baseline.eyeOpenRatio * 0.45;
+
+    // Head pose as secondary context — only extreme turns matter
     const yawDelta = Math.abs(yaw - baseline.yaw);
     const pitchDelta = Math.abs(pitch - baseline.pitch);
-    const eyeDeltaX = Math.abs(eyeMetrics.eyeDirectionX);
-    const eyeDeltaY = Math.abs(eyeMetrics.eyeDirectionY);
-    const eyesClosed = eyeMetrics.eyeOpenRatio < baseline.eyeOpenRatio * 0.45;
+    const extremeHeadTurn = yawDelta > 0.22 || pitchDelta > 0.20;
+    const moderateHeadTurn = yawDelta > 0.15 || pitchDelta > 0.13;
 
     let attention: AttentionReading['attention'] = 'focused';
     if (confidence < 0.35) {
       attention = 'uncertain';
-    } else if (yawDelta > 0.14 || pitchDelta > 0.14 || eyeDeltaX > 0.26 || eyeDeltaY > 0.3 || eyesClosed) {
+    } else if (eyesClosed || eyeDeltaX > 0.20 || eyeDeltaY > 0.25 || extremeHeadTurn) {
+      // Eye gaze has moved significantly away from calibration position, or extreme head turn
       attention = 'offscreen';
-    } else if (yawDelta > 0.08 || pitchDelta > 0.08 || eyeDeltaX > 0.18 || eyeDeltaY > 0.22) {
+    } else if (eyeDeltaX > 0.12 || eyeDeltaY > 0.16 || moderateHeadTurn) {
+      // Moderate eye gaze shift or moderate head turn
       attention = 'warning';
-      guidance.push('Eye tracking unstable');
+      guidance.push('Gaze shifted — look at the screen');
     }
 
     return {
@@ -335,7 +461,9 @@ export class AttentionDetector {
       faceBox,
       eyeDirectionX: eyeMetrics.eyeDirectionX,
       eyeDirectionY: eyeMetrics.eyeDirectionY,
-      eyeOpenRatio: eyeMetrics.eyeOpenRatio
+      eyeOpenRatio: eyeMetrics.eyeOpenRatio,
+      leftEye: eyeMetrics.leftEye,
+      rightEye: eyeMetrics.rightEye
     };
   }
 

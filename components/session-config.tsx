@@ -9,6 +9,15 @@ interface Props {
   disabled?: boolean;
 }
 
+const PUNISHMENT_CLIPS = [
+  { label: 'Sahur', value: '/media/sahur.mp4' },
+  { label: 'Fahh', value: '/media/fahh.mp4' },
+  { label: 'Fahhhhhhhh', value: '/media/fahhhhhhhh.mp4' },
+  { label: 'Gey Echo', value: '/media/gey-echo.mp4' },
+  { label: 'Oh Shit Not Good', value: '/media/oh-shit-not-good.mp4' },
+  { label: 'Rip My Granny', value: '/media/rip-my-granny.mp4' },
+];
+
 const Input = ({
   label,
   value,
@@ -82,6 +91,23 @@ export function SessionConfigCard({ value, onChange, onStart, disabled }: Props)
         />
         Meme punishment mode (audio/video)
       </label>
+
+      {value.punishmentEnabled && (
+        <label className="mt-3 block space-y-1 text-sm">
+          <span className="text-zinc-300">Punishment clip</span>
+          <select
+            value={value.punishmentMedia}
+            onChange={(e) => onChange({ ...value, punishmentMedia: e.target.value })}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-white"
+          >
+            {PUNISHMENT_CLIPS.map((clip) => (
+              <option key={clip.value} value={clip.value}>
+                {clip.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <button
         disabled={disabled}

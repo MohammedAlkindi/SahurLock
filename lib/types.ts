@@ -18,6 +18,7 @@ export interface SessionConfig {
   breakLimit: number;
   breakDurationSec: number;
   punishmentEnabled: boolean;
+  punishmentMedia: string;
 }
 
 export interface SessionStats {
@@ -51,6 +52,33 @@ export interface PixelBox {
   height: number;
 }
 
+// Normalized (0–1) point relative to video frame
+export interface NormPoint {
+  x: number;
+  y: number;
+}
+
+// Full per-eye data in normalized (0–1) video-frame coordinates
+export interface EyeData {
+  // Bounding box
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  // Iris center
+  irisX: number;
+  irisY: number;
+  // Iris radius (normalized by frame width)
+  irisRadius: number;
+  // Normalized gaze direction vector (offset of iris from eye center, per eye)
+  gazeX: number;
+  gazeY: number;
+  // Per-eye eye-aspect-ratio (0 = closed, higher = more open)
+  openRatio: number;
+  // Full eyelid contour for drawing
+  contour: NormPoint[];
+}
+
 export interface BaselinePose {
   centerX: number;
   centerY: number;
@@ -73,6 +101,8 @@ export interface AttentionReading {
   eyeDirectionX: number;
   eyeDirectionY: number;
   eyeOpenRatio: number;
+  leftEye: EyeData | null;
+  rightEye: EyeData | null;
 }
 
 export interface CalibrationReport {
