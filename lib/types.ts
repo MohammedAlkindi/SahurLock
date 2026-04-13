@@ -10,7 +10,7 @@ export type AppState =
   | 'session_complete'
   | 'camera_error';
 
-export type AttentionLevel = 'focused' | 'away' | 'uncertain';
+export type AttentionLevel = 'focused' | 'warning' | 'offscreen' | 'uncertain';
 
 export interface SessionConfig {
   durationMinutes: number;
@@ -44,11 +44,22 @@ export interface SessionHistoryItem {
   stats: SessionStats;
 }
 
+export interface PixelBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface BaselinePose {
   centerX: number;
   centerY: number;
   yaw: number;
   pitch: number;
+  eyeCenterX: number;
+  eyeCenterY: number;
+  eyeOpenRatio: number;
+  faceBox: PixelBox;
 }
 
 export interface AttentionReading {
@@ -58,6 +69,10 @@ export interface AttentionReading {
   pitch: number;
   attention: AttentionLevel;
   guidance: string[];
+  faceBox: PixelBox | null;
+  eyeDirectionX: number;
+  eyeDirectionY: number;
+  eyeOpenRatio: number;
 }
 
 export interface CalibrationReport {
@@ -65,6 +80,8 @@ export interface CalibrationReport {
   confidence: number;
   reason: string;
   baseline: BaselinePose | null;
+  sampleCount: number;
+  detectionRate: number;
 }
 
 export interface RuntimeState {

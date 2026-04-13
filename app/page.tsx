@@ -24,6 +24,7 @@ const DEFAULTS: SessionConfig = {
 
 const STABILIZE_MS = 2000;
 const CALIBRATION_MS = 3000;
+const CALIBRATION_SAMPLE_MS = 100;
 const COUNTDOWN_MS = 3000;
 
 export default function HomePage() {
@@ -42,6 +43,7 @@ export default function HomePage() {
   const [cameraError, setCameraError] = useState<string>('');
   const [historyCount, setHistoryCount] = useState(0);
   const [aggregateSessions, setAggregateSessions] = useState(0);
+  const [manualZoom, setManualZoom] = useState(1);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLVideoElement>(null);
@@ -114,6 +116,7 @@ export default function HomePage() {
     setRemainingMs(configRef.current.durationMinutes * 60_000);
     setSummaryStats(null);
     setCameraError('');
+    setManualZoom(1);
     audioRef.current?.pause();
   };
 
@@ -183,15 +186,12 @@ export default function HomePage() {
       const reading = detectorRef.current ? await detectorRef.current.estimate(videoRef.current!, baselineRef.current) : null;
       setAttention(reading);
 
-      if (state === 'calibrating' && reading) {
-        calibrationReadingsRef.current.push(reading);
-      }
-
-      const away = !reading || reading.attention === 'away' || !reading.facePresent;
+      const offscreen = !reading || reading.attention === 'offscreen' || !reading.facePresent;
+      const warning = !reading || reading.attention === 'warning';
       const uncertain = !reading || reading.attention === 'uncertain';
 
       if (state === 'violated') {
-        if (!away && !uncertain) {
+        if (!offscreen && !uncertain && !warning) {
           setStabilizeMs((prev) => {
             const next = prev + delta;
             if (next >= STABILIZE_MS) {
@@ -207,13 +207,15 @@ export default function HomePage() {
           setStabilizeMs(0);
         }
       } else if (state === 'focused' || state === 'warning') {
-        if (away) {
+        if (offscreen || warning) {
           setOffscreenMs((prev) => {
             const next = prev + delta;
             statsRef.current.longestDistractionMs = Math.max(statsRef.current.longestDistractionMs, next);
-            if (next >= configRef.current.offscreenThresholdSec * 1000 && !uncertain) {
+            if (next >= configRef.current.offscreenThresholdSec * 1000 && offscreen) {
               triggerPunishment();
-            } else if (next >= configRef.current.offscreenThresholdSec * 500) {
+            } else if (next >= configRef.current.offscreenThresholdSec * 350) {
+              setAppState('warning');
+            } else if (uncertain) {
               setAppState('warning');
             }
             return next;
@@ -233,6 +235,7 @@ export default function HomePage() {
   const startSession = async () => {
     try {
       setCameraError('');
+      setManualZoom(1);
       setAppState('requesting_permission');
       setSummaryStats(null);
       setRemainingMs(configRef.current.durationMinutes * 60_000);
@@ -249,6 +252,7 @@ export default function HomePage() {
         detectorRef.current = new AttentionDetector();
       }
       await detectorRef.current.init();
+      detectorRef.current.setManualZoom(1);
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -278,10 +282,20 @@ export default function HomePage() {
       calibrationReadingsRef.current = [];
 
       const calTick = setInterval(() => setCalibrationLeft((prev) => Math.max(0, prev - 1)), 1000);
+      const sampleTimer = setInterval(async () => {
+        if (appStateRef.current !== 'calibrating' || !videoRef.current || !detectorRef.current) return;
+        const reading = await detectorRef.current.estimate(videoRef.current, null);
+        calibrationReadingsRef.current.push(reading);
+      }, CALIBRATION_SAMPLE_MS);
 
       setTimeout(() => {
         clearInterval(calTick);
-        const report = AttentionDetector.buildCalibration(calibrationReadingsRef.current);
+        clearInterval(sampleTimer);
+        const report = AttentionDetector.buildCalibration(
+          calibrationReadingsRef.current,
+          videoRef.current?.videoWidth || 1280,
+          videoRef.current?.videoHeight || 720
+        );
         if (!report.ok || !report.baseline) {
           const latestHints = calibrationReadingsRef.current[calibrationReadingsRef.current.length - 1]?.guidance ?? [];
           setCameraError(report.reason || latestHints[0] || 'Could not detect a face during calibration.');
@@ -339,7 +353,22 @@ export default function HomePage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SessionConfigCard value={config} onChange={setConfig} onStart={startSession} disabled={appState !== 'idle'} />
-        <CameraPanel videoRef={videoRef} attention={attention} calibrationLeft={calibrationLeft} />
+        <CameraPanel
+          videoRef={videoRef}
+          attention={attention}
+          calibrationLeft={calibrationLeft}
+          zoomLevel={manualZoom}
+          onZoomIn={() => {
+            const next = Math.min(2, manualZoom + 0.1);
+            setManualZoom(next);
+            detectorRef.current?.setManualZoom(next);
+          }}
+          onZoomOut={() => {
+            const next = Math.max(1, manualZoom - 0.1);
+            setManualZoom(next);
+            detectorRef.current?.setManualZoom(next);
+          }}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
