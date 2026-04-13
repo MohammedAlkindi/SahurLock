@@ -23,7 +23,7 @@ const DEFAULTS: SessionConfig = {
 };
 
 const STABILIZE_MS = 2000;
-const CALIBRATION_MS = 2500;
+const CALIBRATION_MS = 3000;
 const COUNTDOWN_MS = 3000;
 
 export default function HomePage() {
@@ -154,6 +154,7 @@ export default function HomePage() {
   };
 
   const startTrackingLoop = () => {
+    if (rafRef.current) return;
     let lastTs = performance.now();
     const loop = async () => {
       const state = appStateRef.current;
@@ -187,7 +188,7 @@ export default function HomePage() {
       }
 
       const away = !reading || reading.attention === 'away' || !reading.facePresent;
-      const uncertain = reading?.attention === 'uncertain';
+      const uncertain = !reading || reading.attention === 'uncertain';
 
       if (state === 'violated') {
         if (!away && !uncertain) {
@@ -246,8 +247,8 @@ export default function HomePage() {
 
       if (!detectorRef.current) {
         detectorRef.current = new AttentionDetector();
-        await detectorRef.current.init();
       }
+      await detectorRef.current.init();
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -258,6 +259,8 @@ export default function HomePage() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+
+      startTrackingLoop();
 
       if (audioRef.current) {
         audioRef.current.volume = 1.0;
@@ -278,13 +281,14 @@ export default function HomePage() {
 
       setTimeout(() => {
         clearInterval(calTick);
-        const captured = AttentionDetector.captureBaseline(calibrationReadingsRef.current);
-        if (!captured) {
-          setCameraError('Could not detect a face during calibration.');
+        const report = AttentionDetector.buildCalibration(calibrationReadingsRef.current);
+        if (!report.ok || !report.baseline) {
+          const latestHints = calibrationReadingsRef.current[calibrationReadingsRef.current.length - 1]?.guidance ?? [];
+          setCameraError(report.reason || latestHints[0] || 'Could not detect a face during calibration.');
           setAppState('camera_error');
           return;
         }
-        setBaseline(captured);
+        setBaseline(report.baseline);
         setAppState('countdown');
         setCountdownLeft(Math.ceil(COUNTDOWN_MS / 1000));
 
@@ -293,11 +297,10 @@ export default function HomePage() {
         setTimeout(() => {
           clearInterval(c);
           setAppState('focused');
-          startTrackingLoop();
         }, COUNTDOWN_MS);
       }, CALIBRATION_MS);
     } catch {
-      setCameraError('Camera permission denied or camera unavailable.');
+      setCameraError('Camera unavailable or face detector failed to initialize.');
       setAppState('camera_error');
     }
   };

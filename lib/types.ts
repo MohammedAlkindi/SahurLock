@@ -57,6 +57,14 @@ export interface AttentionReading {
   yaw: number;
   pitch: number;
   attention: AttentionLevel;
+  guidance: string[];
+}
+
+export interface CalibrationReport {
+  ok: boolean;
+  confidence: number;
+  reason: string;
+  baseline: BaselinePose | null;
 }
 
 export interface RuntimeState {

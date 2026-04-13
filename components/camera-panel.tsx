@@ -24,6 +24,13 @@ export function CameraPanel({ videoRef, attention, calibrationLeft }: Props) {
           </div>
         ) : null}
       </div>
+      {attention?.guidance?.length ? (
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-300">
+          {attention.guidance.slice(0, 3).map((hint) => (
+            <li key={hint}>{hint}</li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }
