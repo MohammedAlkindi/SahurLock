@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(mkdir -p src)",
+      "Bash(cp -r app src/)",
+      "Bash(cp -r components src/)",
+      "Bash(cp -r lib src/)",
+      "Bash(cp global.d.ts src/)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(node_modules/.bin/next build:*)",
+      "Bash(git -C c:/Users/alkin/projects/SahurLock diff HEAD --stat)",
+      "Bash(git -C c:/Users/alkin/projects/SahurLock log --oneline -3)"
     ]
   }
 }

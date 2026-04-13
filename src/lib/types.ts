@@ -21,6 +21,13 @@ export interface SessionConfig {
   punishmentMedia: string;
 }
 
+export interface SessionPreset {
+  id: string;
+  name: string;
+  description: string;
+  config: Partial<SessionConfig>;
+}
+
 export interface SessionStats {
   startedAt: string;
   endedAt?: string;
@@ -29,6 +36,7 @@ export interface SessionStats {
   longestDistractionMs: number;
   breakUsed: number;
   breakTimeUsedMs: number;
+  focusScore?: number;
 }
 
 export interface AggregateStats {
@@ -37,6 +45,10 @@ export interface AggregateStats {
   totalViolations: number;
   totalBreakTimeMs: number;
   longestDistractionMs: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastSessionDate: string;
+  totalFocusScore: number;
 }
 
 export interface SessionHistoryItem {
