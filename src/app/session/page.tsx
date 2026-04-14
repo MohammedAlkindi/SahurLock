@@ -43,7 +43,8 @@ const CALIBRATION_NEEDED     = 25;   // good-quality samples required to proceed
 const CALIBRATION_SAMPLE_MS  = 100;  // ms between calibration samples
 const CALIBRATION_HARD_LIMIT = 300;  // max total samples before forcing a build (~30s)
 const CALIBRATION_STALL_AT   = 150;  // sample count at which to check for a stall
-const CALIBRATION_STALL_MIN  = 10;   // good samples needed by STALL_AT to avoid stall warning
+const CALIBRATION_STALL_MIN  = 8;    // good samples needed by STALL_AT to avoid stall warning
+const CALIBRATION_GOOD_CONF  = 0.40; // min confidence to count as a good calibration sample
 const COUNTDOWN_MS           = 3000;
 
 // ── Active session sidebar ─────────────────────────────────────────────────────
@@ -274,10 +275,17 @@ export default function SessionPage() {
       videoRef.current?.videoHeight || 720
     );
     if (!report.ok || !report.baseline) {
-      const hint = calibReadingsRef.current[calibReadingsRef.current.length - 1]?.guidance?.[0];
-      setCameraError(
-        report.reason || hint || 'No face detected. Adjust your position or lighting, then try again.'
+      // Surface the most relevant hint from recent readings for extra context
+      const recentReadings = calibReadingsRef.current.slice(-10);
+      const lightingHint = recentReadings.find(
+        (r) => r.lightingCondition === 'dark' || r.lightingCondition === 'backlit'
       );
+      const extra = lightingHint?.lightingCondition === 'dark'
+        ? ' Try turning on a light or moving closer to a window.'
+        : lightingHint?.lightingCondition === 'backlit'
+        ? ' Move any bright light sources away from behind you.'
+        : '';
+      setCameraError((report.reason || 'No face detected. Centre yourself in the camera.') + extra);
       setAppState('camera_error');
       return;
     }
@@ -308,7 +316,7 @@ export default function SessionPage() {
       calibReadingsRef.current.push(r);
       totalSamples++;
 
-      if (r.facePresent && r.confidence >= 0.5) {
+      if (r.facePresent && r.confidence >= CALIBRATION_GOOD_CONF) {
         goodSamples++;
         setCalibrationGoodSamples(goodSamples);
       }

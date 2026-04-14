@@ -175,11 +175,12 @@ export function CameraPanel({
   const leftOpen  = attention?.leftEye?.openRatio  ?? 0;
   const rightOpen = attention?.rightEye?.openRatio ?? 0;
 
-  const faceOk       = attention?.facePresent ?? false;
-  const confidenceOk = (attention?.confidence ?? 0) >= 0.5;
-  const confidencePct = Math.round((attention?.confidence ?? 0) * 100);
-  const guidance     = attention?.guidance?.[0] ?? null;
-  const calibPct     = Math.min(100, (calibrationGoodSamples / calibrationNeeded) * 100);
+  const faceOk           = attention?.facePresent ?? false;
+  const confidenceOk     = (attention?.confidence ?? 0) >= 0.5;
+  const confidencePct    = Math.round((attention?.confidence ?? 0) * 100);
+  const guidance         = attention?.guidance?.[0] ?? null;
+  const lightingCondition = attention?.lightingCondition ?? 'normal';
+  const calibPct         = Math.min(100, (calibrationGoodSamples / calibrationNeeded) * 100);
 
   return (
     <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
@@ -212,15 +213,16 @@ export function CameraPanel({
         {/* ── Calibration progress panel (bottom docked, semi-transparent) ── */}
         {calibrating && (
           <div className="absolute inset-x-0 bottom-0 bg-zinc-950/90 px-4 py-3 backdrop-blur-sm">
-            {/* Stall warning — shown when detection is taking too long */}
-            {calibrationStalled && (
+            {/* Stall / lighting warning */}
+            {(calibrationStalled || guidance) && (
               <p className="mb-2 text-xs text-amber-400">
-                Detection is taking longer than expected.
-                {guidance ? ` ${guidance}` : ' Try adjusting your position or lighting.'}
+                {calibrationStalled
+                  ? `Detection slow. ${guidance ?? 'Try adjusting your position or lighting.'}`
+                  : guidance}
               </p>
             )}
 
-            {/* Status indicators + progress */}
+            {/* Status indicators + lighting badge + progress */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <StatusDot ok={faceOk} />
@@ -230,6 +232,17 @@ export function CameraPanel({
                 <StatusDot ok={confidenceOk} />
                 <span className="text-xs text-zinc-400">{confidencePct}%</span>
               </div>
+
+              {/* Lighting condition badge */}
+              {lightingCondition !== 'normal' && (
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                  lightingCondition === 'dark'
+                    ? 'bg-zinc-800 text-zinc-400'
+                    : 'bg-amber-900/60 text-amber-300'
+                }`}>
+                  {lightingCondition === 'dark' ? 'dim' : 'backlit'}
+                </span>
+              )}
 
               {/* Progress bar */}
               <div className="ml-auto flex items-center gap-2">
@@ -244,11 +257,6 @@ export function CameraPanel({
                 </span>
               </div>
             </div>
-
-            {/* Guidance hint (only if not stalled — stall shows its own message above) */}
-            {!calibrationStalled && guidance && !faceOk && (
-              <p className="mt-1.5 text-xs text-amber-400/80">{guidance}</p>
-            )}
           </div>
         )}
 

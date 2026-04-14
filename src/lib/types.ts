@@ -96,6 +96,7 @@ export interface BaselinePose {
   centerY: number;
   yaw: number;
   pitch: number;
+  roll: number;
   eyeCenterX: number;
   eyeCenterY: number;
   eyeOpenRatio: number;
@@ -107,6 +108,7 @@ export interface AttentionReading {
   confidence: number;
   yaw: number;
   pitch: number;
+  roll: number;
   attention: AttentionLevel;
   guidance: string[];
   faceBox: PixelBox | null;
@@ -115,6 +117,7 @@ export interface AttentionReading {
   eyeOpenRatio: number;
   leftEye: EyeData | null;
   rightEye: EyeData | null;
+  lightingCondition: 'dark' | 'backlit' | 'normal';
 }
 
 export interface CalibrationReport {
