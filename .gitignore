@@ -6,5 +6,4 @@ npm-debug.log*
 .claude
 tsconfig.tsbuildinfo
 .env.local
-
-
+.env
