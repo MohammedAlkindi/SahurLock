@@ -7,6 +7,7 @@ import {
   Timer,
   CheckSquare,
   BarChart2,
+  NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
   Zap,
@@ -17,15 +18,16 @@ import { useTheme } from 'next-themes';
 import { cn } from '@/lib/cn';
 
 const NAV = [
-  { href: '/session', icon: Timer,       label: 'Session' },
-  { href: '/tasks',   icon: CheckSquare, label: 'Tasks'   },
-  { href: '/stats',   icon: BarChart2,   label: 'Stats'   },
+  { href: '/session', icon: Timer,        label: 'Session' },
+  { href: '/tasks',   icon: CheckSquare,  label: 'Tasks'   },
+  { href: '/stats',   icon: BarChart2,    label: 'Stats'   },
+  { href: '/notes',   icon: NotebookPen,  label: 'Notes'   },
 ];
 
 const COLLAPSED_KEY = 'sahurlock.sidebar.collapsed';
 
 export function Sidebar() {
-  const pathname  = usePathname();
+  const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [mounted,   setMounted]   = useState(false);
@@ -90,7 +92,6 @@ export function Sidebar() {
 
       {/* Bottom actions */}
       <div className="border-t border-border p-2 space-y-0.5">
-        {/* Theme toggle */}
         {mounted && (
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -108,7 +109,6 @@ export function Sidebar() {
           </button>
         )}
 
-        {/* Collapse toggle */}
         <button
           onClick={toggle}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
