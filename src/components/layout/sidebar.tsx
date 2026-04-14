@@ -10,7 +10,10 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Zap,
+  Sun,
+  Moon,
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { cn } from '@/lib/cn';
 
 const NAV = [
@@ -22,10 +25,13 @@ const NAV = [
 const COLLAPSED_KEY = 'sahurlock.sidebar.collapsed';
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname  = usePathname();
+  const { theme, setTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
+  const [mounted,   setMounted]   = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     try {
       const stored = localStorage.getItem(COLLAPSED_KEY);
       if (stored !== null) setCollapsed(stored === 'true');
@@ -82,8 +88,27 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="border-t border-border p-2">
+      {/* Bottom actions */}
+      <div className="border-t border-border p-2 space-y-0.5">
+        {/* Theme toggle */}
+        {mounted && (
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground',
+              collapsed && 'justify-center'
+            )}
+          >
+            {theme === 'dark'
+              ? <Sun size={17} className="shrink-0 text-yellow-400" />
+              : <Moon size={17} className="shrink-0 text-blue-400" />
+            }
+            {!collapsed && <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
+          </button>
+        )}
+
+        {/* Collapse toggle */}
         <button
           onClick={toggle}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChevronDown } from 'lucide-react';
 import {
   clearAllData,
   deleteSessionById,
@@ -48,9 +48,10 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function StatsPage() {
-  const [agg,       setAgg]       = useState<AggregateStats | null>(null);
-  const [history,   setHistory]   = useState<SessionHistoryItem[]>([]);
+  const [agg,        setAgg]        = useState<AggregateStats | null>(null);
+  const [history,    setHistory]    = useState<SessionHistoryItem[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const reload = () => {
     setAgg(loadAggregate());
@@ -177,50 +178,77 @@ export default function StatsPage() {
                     const grade     = getFocusGrade(score);
                     const sessionMs = item.config.durationMinutes * 60_000;
                     const focusPct  = sessionMs > 0 ? Math.round((item.stats.totalFocusedMs / sessionMs) * 100) : 0;
+                    const isExpanded = expandedId === item.id;
+                    const hasNotes   = !!item.stats.notes?.trim();
 
                     return (
-                      <tr key={item.id} className="border-b border-border/40 transition hover:bg-muted/20">
-                        <td className="px-5 py-3">
-                          <p className="text-xs text-muted-foreground">
-                            {item.stats.startedAt
-                              ? new Date(item.stats.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                              : '—'}
-                          </p>
-                          {item.stats.taskTitle && (
-                            <p className="mt-0.5 truncate text-[10px] text-muted-foreground/50">{item.stats.taskTitle}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-foreground">{item.config.durationMinutes} min</td>
-                        <td className="px-4 py-3">
-                          <span className={`font-bold tabular-nums ${grade.color}`}>{score}</span>
-                          <span className={`ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold ${grade.bg} ${grade.color}`}>{grade.label}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-                              <div className={`h-full rounded-full ${focusPct >= 80 ? 'bg-green-500' : focusPct >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${focusPct}%` }} />
+                      <>
+                        <tr
+                          key={item.id}
+                          onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                          className="cursor-pointer border-b border-border/40 transition hover:bg-muted/20"
+                        >
+                          <td className="px-5 py-3">
+                            <p className="text-xs text-muted-foreground">
+                              {item.stats.startedAt
+                                ? new Date(item.stats.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : '—'}
+                            </p>
+                            {item.stats.taskTitle && (
+                              <p className="mt-0.5 truncate text-[10px] text-muted-foreground/50">{item.stats.taskTitle}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-foreground">{item.config.durationMinutes} min</td>
+                          <td className="px-4 py-3">
+                            <span className={`font-bold tabular-nums ${grade.color}`}>{score}</span>
+                            <span className={`ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold ${grade.bg} ${grade.color}`}>{grade.label}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+                                <div className={`h-full rounded-full ${focusPct >= 80 ? 'bg-green-500' : focusPct >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${focusPct}%` }} />
+                              </div>
+                              <span className="tabular-nums text-xs text-muted-foreground">{focusPct}%</span>
                             </div>
-                            <span className="tabular-nums text-xs text-muted-foreground">{focusPct}%</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={item.stats.violationCount === 0 ? 'text-green-400' : 'text-foreground'}>
-                            {item.stats.violationCount}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 tabular-nums text-xs text-muted-foreground">
-                          {item.stats.longestDistractionMs > 0 ? formatTime(item.stats.longestDistractionMs) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="rounded p-1.5 text-muted-foreground/30 transition hover:bg-muted hover:text-red-400"
-                            aria-label="Delete session"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={item.stats.violationCount === 0 ? 'text-green-400' : 'text-foreground'}>
+                              {item.stats.violationCount}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 tabular-nums text-xs text-muted-foreground">
+                            {item.stats.longestDistractionMs > 0 ? formatTime(item.stats.longestDistractionMs) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {hasNotes && (
+                                <ChevronDown
+                                  size={13}
+                                  className={`text-muted-foreground/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                />
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                                className="rounded p-1.5 text-muted-foreground/30 transition hover:bg-muted hover:text-red-400"
+                                aria-label="Delete session"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${item.id}-notes`} className="border-b border-border/40 bg-muted/10">
+                            <td colSpan={7} className="px-5 py-3">
+                              {hasNotes ? (
+                                <p className="text-xs text-muted-foreground whitespace-pre-wrap">{item.stats.notes}</p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground/40 italic">No notes for this session.</p>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     );
                   })}
                 </tbody>

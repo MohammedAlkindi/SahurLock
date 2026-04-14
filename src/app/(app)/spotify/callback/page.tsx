@@ -63,91 +63,55 @@ export default function SpotifyCallbackPage() {
   }, [status, countdown, router]);
 
   return (
-    <main className="flex min-h-[calc(100vh-57px)] items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
+    <div className="flex h-full items-center justify-center px-4">
+      <div className="w-full max-w-xs">
 
-        {/* Spotify wordmark */}
-        <div className="mb-8 flex items-center justify-center gap-2.5 text-[#1DB954]">
-          <svg viewBox="0 0 24 24" width={32} height={32} fill="currentColor">
-            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-          </svg>
-          <span className="text-xl font-black tracking-tight">Spotify</span>
-        </div>
+        {status === 'loading' && (
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <div className="h-4 w-4 rounded-full border-2 border-border border-t-[#1DB954] animate-spin" />
+            <span className="text-sm">Connecting…</span>
+          </div>
+        )}
 
-        {/* Card */}
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-8 shadow-2xl">
+        {status === 'success' && (
+          <div>
+            <p className="text-2xl font-black">
+              {displayName ?? 'Connected'}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Spotify linked. Heading to session in {countdown}s.
+            </p>
+            <Link
+              href="/session"
+              className="mt-6 inline-block rounded-xl bg-[#1DB954] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#1ed760]"
+            >
+              Go now
+            </Link>
+          </div>
+        )}
 
-          {/* ── Loading ── */}
-          {status === 'loading' && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="h-12 w-12 rounded-full border-2 border-zinc-700 border-t-[#1DB954] animate-spin" />
-              <p className="text-sm font-medium text-zinc-300">Connecting…</p>
-            </div>
-          )}
-
-          {/* ── Success ── */}
-          {status === 'success' && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1DB954]/15 ring-1 ring-[#1DB954]/30">
-                <svg viewBox="0 0 24 24" width={28} height={28} fill="#1DB954">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                </svg>
-              </div>
-
-              <div>
-                <p className="text-base font-bold text-white">
-                  {displayName ? displayName : 'Connected'}
-                </p>
-                <p className="mt-1 text-sm text-zinc-400">Spotify is ready.</p>
-              </div>
-
-              <div className="w-full rounded-lg border border-zinc-800 bg-zinc-800/40 px-4 py-2.5 text-xs text-zinc-500">
-                Redirecting to session in{' '}
-                <span className="font-semibold text-zinc-300">{countdown}s</span>…
-              </div>
-
+        {status === 'error' && (
+          <div>
+            <p className="text-2xl font-black">Failed</p>
+            <p className="mt-1 text-sm text-muted-foreground">{errorMsg}</p>
+            <div className="mt-6 flex gap-3">
+              <Link
+                href="/api/spotify/login"
+                className="rounded-xl bg-[#1DB954] px-5 py-2.5 text-sm font-bold text-black transition hover:bg-[#1ed760]"
+              >
+                Try again
+              </Link>
               <Link
                 href="/session"
-                className="w-full rounded-lg bg-[#1DB954] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#1ed760] active:scale-[0.98]"
+                className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
               >
-                Go to session now
+                Cancel
               </Link>
             </div>
-          )}
-
-          {/* ── Error ── */}
-          {status === 'error' && (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20">
-                <svg viewBox="0 0 24 24" width={28} height={28} fill="#f87171">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-                </svg>
-              </div>
-
-              <div>
-                <p className="text-base font-bold text-white">Connection failed</p>
-                <p className="mt-1 text-sm text-zinc-400">{errorMsg}</p>
-              </div>
-
-              <div className="flex w-full flex-col gap-2">
-                <Link
-                  href="/api/spotify/login"
-                  className="w-full rounded-lg bg-[#1DB954] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#1ed760] active:scale-[0.98]"
-                >
-                  Try again
-                </Link>
-                <Link
-                  href="/session"
-                  className="w-full rounded-lg border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-400 transition hover:border-zinc-600 hover:text-white"
-                >
-                  Back to session
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
-    </main>
+    </div>
   );
 }
