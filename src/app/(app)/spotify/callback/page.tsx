@@ -1,8 +1,6 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { SpotifyService } from '@/lib/spotify';
@@ -10,14 +8,14 @@ import { SpotifyService } from '@/lib/spotify';
 type Status = 'loading' | 'success' | 'error';
 
 const ERROR_MESSAGES: Record<string, string> = {
-  access_denied:          'You cancelled the Spotify login.',
-  state_mismatch:         'Security check failed. Please try connecting again.',
-  token_exchange_failed:  'Could not connect to Spotify. Please try again.',
-  server_misconfigured:   'Spotify is not configured on this server.',
-  unknown:                'Something went wrong. Please try again.',
+  access_denied:         'You cancelled the Spotify login.',
+  state_mismatch:        'Security check failed. Please try connecting again.',
+  token_exchange_failed: 'Could not connect to Spotify. Please try again.',
+  server_misconfigured:  'Spotify is not configured on this server.',
+  unknown:               'Something went wrong. Please try again.',
 };
 
-export default function SpotifyCallbackPage() {
+function CallbackInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
@@ -34,7 +32,6 @@ export default function SpotifyCallbackPage() {
       return;
     }
 
-    // Parse tokens from hash fragment and hand off to the service
     const service = SpotifyService.getInstance();
     const saved   = service.handleHashCallback();
 
@@ -44,19 +41,11 @@ export default function SpotifyCallbackPage() {
       return;
     }
 
-    // Fetch profile to confirm connection and get display name
     service.getProfile()
-      .then((profile) => {
-        setDisplayName(profile.display_name);
-        setStatus('success');
-      })
-      .catch(() => {
-        // Tokens saved but profile fetch failed — still a success
-        setStatus('success');
-      });
+      .then((profile) => { setDisplayName(profile.display_name); setStatus('success'); })
+      .catch(() => { setStatus('success'); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-redirect countdown after success
   useEffect(() => {
     if (status !== 'success') return;
     if (countdown <= 0) { router.replace('/session'); return; }
@@ -77,9 +66,7 @@ export default function SpotifyCallbackPage() {
 
         {status === 'success' && (
           <div>
-            <p className="text-2xl font-black">
-              {displayName ?? 'Connected'}
-            </p>
+            <p className="text-2xl font-black">{displayName ?? 'Connected'}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Spotify linked. Heading to session in {countdown}s.
             </p>
@@ -115,5 +102,13 @@ export default function SpotifyCallbackPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function SpotifyCallbackPage() {
+  return (
+    <Suspense>
+      <CallbackInner />
+    </Suspense>
   );
 }
