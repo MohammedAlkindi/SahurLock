@@ -3,21 +3,21 @@ import Link from 'next/link';
 const FEATURES = [
   {
     index: '01',
-    title: 'Face mesh detection',
+    title: 'Face tracking',
     description:
-      'MediaPipe tracks 468 facial landmarks per frame, entirely in your browser. Gaze direction, eye openness, and head pose are computed locally — no model server, no round trips.'
+      'MediaPipe runs entirely in your browser — no server, no uploads. It tracks your gaze direction, head pose, and eye openness on every frame.'
   },
   {
     index: '02',
-    title: 'Attention enforcement',
+    title: 'Punishment on violation',
     description:
-      'A configurable grace period determines how long you can look away. Exceed it and a fullscreen alert fires, blocking your view until you hold your gaze steady for two seconds.'
+      'Drift past the grace period and a fullscreen alert fires. It stays until you hold your gaze steady for two seconds. You cannot click it away.'
   },
   {
     index: '03',
-    title: 'Local by design',
+    title: 'Nothing leaves your device',
     description:
-      'Webcam frames are processed in-memory and never transmitted. No account, no backend, no analytics. Session history is stored in browser localStorage only.'
+      'No account. No backend. Webcam frames are processed in memory and discarded. Session history lives in your browser.'
   }
 ];
 
@@ -25,32 +25,41 @@ const STEPS = [
   {
     step: '01',
     title: 'Configure',
-    description: 'Choose a preset or set your own session duration, grace period, and break allowance.'
+    description: 'Pick a preset or dial in your own duration, grace period, and breaks.'
   },
   {
     step: '02',
     title: 'Calibrate',
-    description: 'Position yourself in frame. SahurLock records your neutral head pose in under four seconds.'
+    description: 'Sit in frame. SahurLock reads your neutral pose in a few seconds and locks it in.'
   },
   {
     step: '03',
     title: 'Work',
-    description: 'The tracker runs silently. An alert fires when you drift past the threshold; hold your gaze to recover.'
+    description: 'The tracker runs in the background. Drift too far and the alert fires. Stay focused to clear it.'
   }
 ];
 
 export default function LandingPage() {
   return (
     <main className="min-h-screen">
+      {/* ── Nav ───────────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <span className="text-lg font-black tracking-tight">
+            <span className="text-green-400">S</span>ahurLock
+          </span>
+          <div className="flex items-center gap-1">
+            <Link href="/session" className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">Session</Link>
+            <Link href="/tasks"   className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">Tasks</Link>
+            <Link href="/stats"   className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">Stats</Link>
+            <Link href="/session" className="ml-2 rounded-lg bg-green-500 px-4 py-1.5 text-sm font-semibold text-black hover:bg-green-400 transition-colors">New Session</Link>
+          </div>
+        </div>
+      </nav>
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden px-4 pb-24 pt-20 text-center">
         <div className="pointer-events-none absolute inset-0 -z-10 flex items-start justify-center overflow-hidden">
           <div className="h-[600px] w-[900px] rounded-full bg-green-500/8 blur-[120px]" />
-        </div>
-
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-4 py-1.5 text-xs font-medium text-zinc-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-          Local · No cloud · No account
         </div>
 
         <h1 className="mx-auto max-w-3xl text-5xl font-black leading-[1.08] tracking-tight md:text-6xl">
@@ -59,8 +68,8 @@ export default function LandingPage() {
         </h1>
 
         <p className="mx-auto mt-6 max-w-lg text-base text-zinc-400">
-          SahurLock monitors your gaze via MediaPipe face mesh. Step away from the
-          screen too long and a fullscreen alert fires — no escape until you return.
+          Your webcam watches. Look away too long and a fullscreen alert locks you
+          out until you come back. No escape.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -98,10 +107,7 @@ export default function LandingPage() {
       {/* ── Features ─────────────────────────────────────────────────────── */}
       <section className="border-t border-zinc-900 px-4 py-20">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-zinc-600">
-            Capabilities
-          </p>
-          <h2 className="mb-12 text-2xl font-bold">How it works under the hood</h2>
+          <h2 className="mb-12 text-2xl font-bold">How it works</h2>
           <div className="grid gap-px border border-zinc-800 md:grid-cols-3">
             {FEATURES.map((f, i) => (
               <div
@@ -120,9 +126,6 @@ export default function LandingPage() {
       {/* ── How it works ─────────────────────────────────────────────────── */}
       <section className="border-t border-zinc-900 px-4 py-20">
         <div className="mx-auto max-w-4xl">
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-zinc-600">
-            Getting started
-          </p>
           <h2 className="mb-12 text-2xl font-bold">Three steps</h2>
           <div className="grid gap-10 md:grid-cols-3">
             {STEPS.map((s) => (
@@ -134,18 +137,6 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section className="border-t border-zinc-900 px-4 py-20 text-center">
-        <h2 className="text-2xl font-bold">Start a session</h2>
-        <p className="mt-3 text-sm text-zinc-500">Calibration takes under four seconds.</p>
-        <Link
-          href="/session"
-          className="mt-7 inline-block rounded-lg bg-green-500 px-8 py-3 text-sm font-semibold text-black transition hover:bg-green-400"
-        >
-          Open session page
-        </Link>
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}

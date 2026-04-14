@@ -73,8 +73,8 @@ function redirectToSession(
   errorCode?: string
 ): NextResponse {
   if (!tokens) {
-    const url = new URL('/session', origin);
-    url.searchParams.set('spotify_error', errorCode ?? 'unknown');
+    const url = new URL('/spotify/callback', origin);
+    url.searchParams.set('error', errorCode ?? 'unknown');
     return NextResponse.redirect(url.toString());
   }
 
@@ -86,5 +86,5 @@ function redirectToSession(
 
   // NextResponse.redirect follows the Location header; the browser appends the
   // hash client-side — the server never sees the fragment.
-  return NextResponse.redirect(`${origin}/session#${hashParams.toString()}`);
+  return NextResponse.redirect(`${origin}/spotify/callback#${hashParams.toString()}`);
 }

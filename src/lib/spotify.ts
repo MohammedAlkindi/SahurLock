@@ -202,18 +202,6 @@ export class SpotifyService {
     return true;
   }
 
-  /** Propagate an error from the OAuth callback query param. */
-  consumeCallbackError(): string | null {
-    if (typeof window === 'undefined') return null;
-    const url = new URL(window.location.href);
-    const err = url.searchParams.get('spotify_error');
-    if (err) {
-      url.searchParams.delete('spotify_error');
-      history.replaceState(null, '', url.toString());
-    }
-    return err;
-  }
-
   // ── Token refresh ─────────────────────────────────────────────────────────────
 
   private async _refreshAccessToken(): Promise<string | null> {

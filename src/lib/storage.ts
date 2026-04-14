@@ -1,16 +1,13 @@
-import { AggregateStats, SessionConfig, SessionHistoryItem } from '@/lib/types';
+import { AggregateStats, SessionConfig, SessionHistoryItem, Task } from '@/lib/types';
 
 const SETTINGS_KEY = 'sahurlock.settings';
 const HISTORY_KEY  = 'sahurlock.history';
 const AGG_KEY      = 'sahurlock.aggregate';
+const TASKS_KEY    = 'sahurlock.tasks';
 
 const safeParse = <T>(raw: string | null, fallback: T): T => {
   if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
 };
 
 const AGGREGATE_DEFAULTS: AggregateStats = {
@@ -22,7 +19,7 @@ const AGGREGATE_DEFAULTS: AggregateStats = {
   currentStreak: 0,
   longestStreak: 0,
   lastSessionDate: '',
-  totalFocusScore: 0
+  totalFocusScore: 0,
 };
 
 function computeStreak(
@@ -32,14 +29,12 @@ function computeStreak(
 ): { currentStreak: number; longestStreak: number } {
   const today     = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86_400_000).toDateString();
-
-  if (!lastDate) return { currentStreak: 1, longestStreak: Math.max(1, longest) };
-  if (lastDate === today) return { currentStreak: current, longestStreak: longest };
+  if (!lastDate)          return { currentStreak: 1,         longestStreak: Math.max(1, longest) };
+  if (lastDate === today) return { currentStreak: current,   longestStreak: longest };
   if (lastDate === yesterday) {
     const next = current + 1;
     return { currentStreak: next, longestStreak: Math.max(next, longest) };
   }
-  // Streak broken
   return { currentStreak: 1, longestStreak: longest };
 }
 
@@ -64,9 +59,27 @@ export const loadHistory = (): SessionHistoryItem[] => {
 
 export const saveSessionHistory = (item: SessionHistoryItem) => {
   if (typeof window === 'undefined') return;
-  const current = loadHistory();
-  const next = [item, ...current].slice(0, 30);
+  const next = [item, ...loadHistory()].slice(0, 30);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+};
+
+export const deleteSessionById = (id: string) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(loadHistory().filter((s) => s.id !== id)));
+};
+
+export const updateSessionNotes = (id: string, notes: string) => {
+  if (typeof window === 'undefined') return;
+  const history = loadHistory();
+  const idx = history.findIndex((s) => s.id === id);
+  if (idx === -1) return;
+  history[idx].stats.notes = notes;
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+};
+
+export const clearAllData = () => {
+  if (typeof window === 'undefined') return;
+  [HISTORY_KEY, AGG_KEY, SETTINGS_KEY, TASKS_KEY].forEach((k) => localStorage.removeItem(k));
 };
 
 // ── Aggregate stats ────────────────────────────────────────────────────────────
@@ -91,15 +104,43 @@ export const updateAggregate = (input: {
     agg.longestStreak
   );
   const next: AggregateStats = {
-    sessions: agg.sessions + 1,
-    totalFocusedMs: agg.totalFocusedMs + input.focusedMs,
-    totalViolations: agg.totalViolations + input.violations,
-    totalBreakTimeMs: agg.totalBreakTimeMs + input.breakMs,
+    sessions:             agg.sessions + 1,
+    totalFocusedMs:       agg.totalFocusedMs + input.focusedMs,
+    totalViolations:      agg.totalViolations + input.violations,
+    totalBreakTimeMs:     agg.totalBreakTimeMs + input.breakMs,
     longestDistractionMs: Math.max(agg.longestDistractionMs, input.longestDistractionMs),
     currentStreak,
     longestStreak,
-    lastSessionDate: new Date().toDateString(),
-    totalFocusScore: (agg.totalFocusScore ?? 0) + input.focusScore
+    lastSessionDate:  new Date().toDateString(),
+    totalFocusScore:  (agg.totalFocusScore ?? 0) + input.focusScore,
   };
   localStorage.setItem(AGG_KEY, JSON.stringify(next));
+};
+
+// ── Tasks ──────────────────────────────────────────────────────────────────────
+
+export const loadTasks = (): Task[] => {
+  if (typeof window === 'undefined') return [];
+  return safeParse<Task[]>(localStorage.getItem(TASKS_KEY), []);
+};
+
+export const saveTask = (task: Task) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TASKS_KEY, JSON.stringify([task, ...loadTasks()]));
+};
+
+export const updateTask = (id: string, updates: Partial<Task>) => {
+  if (typeof window === 'undefined') return;
+  const next = loadTasks().map((t) => (t.id === id ? { ...t, ...updates } : t));
+  localStorage.setItem(TASKS_KEY, JSON.stringify(next));
+};
+
+export const deleteTask = (id: string) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TASKS_KEY, JSON.stringify(loadTasks().filter((t) => t.id !== id)));
+};
+
+export const incrementTaskSessionCount = (id: string) => {
+  if (typeof window === 'undefined') return;
+  updateTask(id, { sessionCount: (loadTasks().find((t) => t.id === id)?.sessionCount ?? 0) + 1 });
 };

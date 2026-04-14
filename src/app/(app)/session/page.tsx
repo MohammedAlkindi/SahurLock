@@ -12,43 +12,48 @@ import { ViolationOverlay } from '@/components/violation-overlay';
 import { AttentionDetector } from '@/lib/attention-detector';
 import { getDerivedState } from '@/lib/session-machine';
 import {
-  loadAggregate,
-  loadHistory,
+  incrementTaskSessionCount,
   loadSettings,
+  loadTasks,
   saveSessionHistory,
   saveSettings,
-  updateAggregate
+  updateAggregate,
 } from '@/lib/storage';
+import { sounds } from '@/lib/sound';
 import {
   AppState,
   AttentionReading,
   BaselinePose,
   SessionConfig,
   SessionHistoryItem,
-  SessionStats
+  SessionStats,
+  Task,
 } from '@/lib/types';
 import { calculateFocusScore, uid } from '@/lib/utils';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
+
 const DEFAULTS: SessionConfig = {
-  durationMinutes: 25,
+  durationMinutes:      25,
   offscreenThresholdSec: 6,
-  breakLimit: 1,
-  breakDurationSec: 300,
-  punishmentEnabled: true,
-  punishmentMedia: '/media/sahur.mp4'
+  breakLimit:           3,
+  breakDurationSec:     300,
+  punishmentEnabled:    true,
+  punishmentMedia:      '/media/sahur.mp4',
+  pomodoroEnabled:      true,
 };
 
-const STABILIZE_MS           = 2000;
-const CALIBRATION_NEEDED     = 25;   // good-quality samples required to proceed
-const CALIBRATION_SAMPLE_MS  = 100;  // ms between calibration samples
-const CALIBRATION_HARD_LIMIT = 300;  // max total samples before forcing a build (~30s)
-const CALIBRATION_STALL_AT   = 150;  // sample count at which to check for a stall
-const CALIBRATION_STALL_MIN  = 8;    // good samples needed by STALL_AT to avoid stall warning
-const CALIBRATION_GOOD_CONF  = 0.40; // min confidence to count as a good calibration sample
+const BASE_STABILIZE_MS      = 2000;
+const CALIBRATION_NEEDED     = 25;
+const CALIBRATION_SAMPLE_MS  = 100;
+const CALIBRATION_HARD_LIMIT = 300;
+const CALIBRATION_STALL_AT   = 150;
+const CALIBRATION_STALL_MIN  = 8;
+const CALIBRATION_GOOD_CONF  = 0.40;
 const COUNTDOWN_MS           = 3000;
 
-// ── Active session sidebar ─────────────────────────────────────────────────────
+// ── Live stat widget ───────────────────────────────────────────────────────────
+
 function LiveStat({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
   return (
     <div className="flex flex-col">
@@ -59,64 +64,98 @@ function LiveStat({ label, value, accent }: { label: string; value: string | num
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function SessionPage() {
-  const [config, setConfig]                     = useState<SessionConfig>(DEFAULTS);
-  const [appState, setAppState]                 = useState<AppState>('idle');
-  const [attention, setAttention]               = useState<AttentionReading | null>(null);
-  const [baseline, setBaseline]                 = useState<BaselinePose | null>(null);
-  const [remainingMs, setRemainingMs]           = useState(DEFAULTS.durationMinutes * 60_000);
-  const [offscreenMs, setOffscreenMs]           = useState(0);
-  const [stabilizeMs, setStabilizeMs]           = useState(0);
-  const [calibrationGoodSamples, setCalibrationGoodSamples] = useState(0);
-  const [calibStalled, setCalibStalled]         = useState(false);
-  const [countdownLeft, setCountdownLeft]       = useState(0);
-  const [breakUsed, setBreakUsed]               = useState(0);
-  const [breakRemainingMs, setBreakRemainingMs] = useState(0);
-  const [summaryStats, setSummaryStats]         = useState<SessionStats | null>(null);
-  const [cameraError, setCameraError]           = useState('');
-  const [manualZoom, setManualZoom]             = useState(1);
-  const [violationCount, setViolationCount]     = useState(0);
 
-  // Refs (stable across renders, no re-render on change)
-  const videoRef         = useRef<HTMLVideoElement>(null);
-  const audioRef         = useRef<HTMLVideoElement>(null);
-  const detectorRef      = useRef<AttentionDetector | null>(null);
-  const streamRef        = useRef<MediaStream | null>(null);
-  const rafRef           = useRef<number | null>(null);
-  const calibTimerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+export default function SessionPage() {
+  const [config, setConfig]                   = useState<SessionConfig>(DEFAULTS);
+  const [appState, setAppState]               = useState<AppState>('idle');
+  const [attention, setAttention]             = useState<AttentionReading | null>(null);
+  const [baseline, setBaseline]               = useState<BaselinePose | null>(null);
+  const [remainingMs, setRemainingMs]         = useState(DEFAULTS.durationMinutes * 60_000);
+  const [offscreenMs, setOffscreenMs]         = useState(0);
+  const [stabilizeMs, setStabilizeMs]         = useState(0);
+  const [calibrationGoodSamples, setCalibrationGoodSamples] = useState(0);
+  const [calibStalled, setCalibStalled]       = useState(false);
+  const [countdownLeft, setCountdownLeft]     = useState(0);
+  const [breakUsed, setBreakUsed]             = useState(0);
+  const [breakRemainingMs, setBreakRemainingMs] = useState(0);
+  const [summaryStats, setSummaryStats]       = useState<SessionStats | null>(null);
+  const [summaryId, setSummaryId]             = useState('');
+  const [cameraError, setCameraError]         = useState('');
+  const [manualZoom, setManualZoom]           = useState(1);
+  const [violationCount, setViolationCount]   = useState(0);
+  const [cameraHidden, setCameraHidden]       = useState(false);
+  const [pomodoroRound, setPomodoroRound]     = useState(1);
+
+  // Task selection
+  const [selectedTaskId, setSelectedTaskId]   = useState('');
+  const [availableTasks, setAvailableTasks]   = useState<Task[]>([]);
+
+  const videoRef      = useRef<HTMLVideoElement>(null);
+  const audioRef      = useRef<HTMLVideoElement>(null);
+  const detectorRef   = useRef<AttentionDetector | null>(null);
+  const streamRef     = useRef<MediaStream | null>(null);
+  const rafRef        = useRef<number | null>(null);
+  const calibTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const calibReadingsRef = useRef<AttentionReading[]>([]);
-  const appStateRef      = useRef<AppState>('idle');
-  const baselineRef      = useRef<BaselinePose | null>(null);
-  const configRef        = useRef<SessionConfig>(DEFAULTS);
-  const breakUsedRef     = useRef(0);
-  const statsRef         = useRef<SessionStats>({
-    startedAt: '',
-    totalFocusedMs: 0,
-    violationCount: 0,
-    longestDistractionMs: 0,
-    breakUsed: 0,
-    breakTimeUsedMs: 0
+
+  const appStateRef   = useRef<AppState>('idle');
+  const baselineRef   = useRef<BaselinePose | null>(null);
+  const configRef     = useRef<SessionConfig>(DEFAULTS);
+  const breakUsedRef  = useRef(0);
+  const violationRef  = useRef(0);
+  const pomodoroRef   = useRef(1); // current round
+
+  const statsRef = useRef<SessionStats>({
+    startedAt: '', totalFocusedMs: 0, violationCount: 0,
+    longestDistractionMs: 0, breakUsed: 0, breakTimeUsedMs: 0,
   });
 
   const totalMs = useMemo(() => config.durationMinutes * 60_000, [config.durationMinutes]);
 
-  // Keep refs in sync with state
-  useEffect(() => { appStateRef.current = appState; }, [appState]);
-  useEffect(() => { baselineRef.current = baseline; }, [baseline]);
-  useEffect(() => { configRef.current = config; }, [config]);
+  // Sync refs
+  useEffect(() => { appStateRef.current  = appState;  }, [appState]);
+  useEffect(() => { baselineRef.current  = baseline;  }, [baseline]);
+  useEffect(() => { configRef.current    = config;    }, [config]);
   useEffect(() => { breakUsedRef.current = breakUsed; }, [breakUsed]);
 
-  // Bootstrap from localStorage
+  // Bootstrap
   useEffect(() => {
     const saved = loadSettings(DEFAULTS);
     setConfig(saved);
     setRemainingMs(saved.durationMinutes * 60_000);
+    setAvailableTasks(loadTasks().filter((t) => t.status === 'active'));
   }, []);
 
-  // Persist settings whenever they change
   useEffect(() => { saveSettings(config); }, [config]);
 
-  // ── Session helpers ──────────────────────────────────────────────────────────
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const state = appStateRef.current;
+      if (e.key === 'b' || e.key === 'B') {
+        if (['focused', 'warning'].includes(state)) takeBreak();
+      }
+      if (e.key === 'e' || e.key === 'E') {
+        if (!['idle', 'session_complete', 'camera_error', 'calibrating', 'countdown', 'requesting_permission'].includes(state)) {
+          finishSession();
+        }
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        if (!['idle', 'session_complete', 'camera_error'].includes(state)) {
+          setCameraHidden((v) => !v);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Session helpers ───────────────────────────────────────────────────────────
+
   const cleanupMedia = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -139,10 +178,15 @@ export default function SessionPage() {
     setCalibStalled(false);
     setCountdownLeft(0);
     setViolationCount(0);
+    setPomodoroRound(1);
+    pomodoroRef.current = 1;
+    violationRef.current = 0;
     setRemainingMs(configRef.current.durationMinutes * 60_000);
     setSummaryStats(null);
+    setSummaryId('');
     setCameraError('');
     setManualZoom(1);
+    setCameraHidden(false);
     audioRef.current?.pause();
   };
 
@@ -154,40 +198,79 @@ export default function SessionPage() {
       sessionDurationMs,
       statsRef.current.violationCount
     );
+
+    // Resolve task info
+    const task = availableTasks.find((t) => t.id === selectedTaskId);
     const done: SessionStats = {
       ...statsRef.current,
-      endedAt: new Date().toISOString(),
-      breakUsed: breakUsedRef.current,
-      focusScore
+      endedAt:    new Date().toISOString(),
+      breakUsed:  breakUsedRef.current,
+      focusScore,
+      taskTitle:  task?.title,
     };
-    const item: SessionHistoryItem = { id: uid(), config: configRef.current, stats: done };
+
+    const itemId = uid();
+    const item: SessionHistoryItem = { id: itemId, config: configRef.current, stats: done };
     saveSessionHistory(item);
     updateAggregate({
-      focusedMs: done.totalFocusedMs,
-      violations: done.violationCount,
-      breakMs: done.breakTimeUsedMs,
+      focusedMs:            done.totalFocusedMs,
+      violations:           done.violationCount,
+      breakMs:              done.breakTimeUsedMs,
       longestDistractionMs: done.longestDistractionMs,
-      focusScore
+      focusScore,
     });
-    loadHistory();
-    loadAggregate();
+
+    // Increment task session count
+    if (task) incrementTaskSessionCount(task.id);
+
+    sounds.sessionComplete();
+    setSummaryId(itemId);
     setSummaryStats(done);
     setAppState('session_complete');
   };
 
   const triggerPunishment = async () => {
+    const newCount = violationRef.current + 1;
+    violationRef.current = newCount;
+    statsRef.current.violationCount = newCount;
+    setViolationCount(newCount);
     setAppState('violated');
-    statsRef.current.violationCount += 1;
-    setViolationCount(statsRef.current.violationCount);
+
+    sounds.violation(newCount);
+
     if (!configRef.current.punishmentEnabled) return;
     const media = audioRef.current;
     if (!media) return;
-    media.volume = 1.0;
+    // Escalate volume with each violation (caps at 1.0)
+    media.volume      = Math.min(1.0, 0.5 + (newCount - 1) * 0.15);
     media.currentTime = 0;
-    try { await media.play(); } catch { window.alert('Punishment clip could not play. Check browser autoplay settings.'); }
+    try { await media.play(); } catch { /* autoplay blocked */ }
   };
 
-  // ── Main tracking loop ───────────────────────────────────────────────────────
+  // ── Pomodoro: check if a work block just ended ────────────────────────────────
+
+  const checkPomodoro = (remaining: number, total: number, cfg: SessionConfig, used: number) => {
+    if (!cfg.pomodoroEnabled || cfg.breakLimit === 0) return;
+    const workChunk    = total / (cfg.breakLimit + 1);
+    const elapsed      = total - remaining;
+    const roundsDone   = Math.floor(elapsed / workChunk);
+    const currentRound = roundsDone + 1;
+
+    if (currentRound !== pomodoroRef.current && used < cfg.breakLimit) {
+      pomodoroRef.current = currentRound;
+      setPomodoroRound(currentRound);
+      sounds.pomodoroRound();
+      // Auto-break
+      setBreakUsed((p) => { breakUsedRef.current = p + 1; return p + 1; });
+      statsRef.current.breakUsed += 1;
+      setBreakRemainingMs(cfg.breakDurationSec * 1000);
+      setOffscreenMs(0);
+      setAppState('break');
+    }
+  };
+
+  // ── Main tracking loop ────────────────────────────────────────────────────────
+
   const startTrackingLoop = () => {
     if (rafRef.current) return;
     let lastTs = performance.now();
@@ -198,23 +281,28 @@ export default function SessionPage() {
       const delta = now - lastTs;
       lastTs = now;
 
-      // Timer advancement
+      // Timer
       if (state === 'break') {
         setBreakRemainingMs((prev) => {
           const next = Math.max(0, prev - delta);
           statsRef.current.breakTimeUsedMs += delta;
-          if (next === 0) setAppState('focused');
+          if (next === 0) {
+            sounds.breakEnd();
+            setAppState('focused');
+          }
           return next;
         });
       } else if (['focused', 'warning', 'violated'].includes(state)) {
         setRemainingMs((prev) => {
           const next = Math.max(0, prev - delta);
           if (next <= 0) { finishSession(); return 0; }
+          // Pomodoro check
+          checkPomodoro(next, configRef.current.durationMinutes * 60_000, configRef.current, breakUsedRef.current);
           return next;
         });
       }
 
-      // Attention estimate
+      // Attention
       const reading = detectorRef.current
         ? await detectorRef.current.estimate(videoRef.current!, baselineRef.current)
         : null;
@@ -224,11 +312,14 @@ export default function SessionPage() {
       const warning   = !reading || reading.attention === 'warning';
       const uncertain = !reading || reading.attention === 'uncertain';
 
+      // Stabilize required scales up with violations
+      const stabilizeRequired = Math.min(5000, BASE_STABILIZE_MS + (violationRef.current - 1) * 500);
+
       if (state === 'violated') {
         if (!offscreen && !uncertain && !warning) {
           setStabilizeMs((prev) => {
             const next = prev + delta;
-            if (next >= STABILIZE_MS) {
+            if (next >= stabilizeRequired) {
               audioRef.current?.pause();
               setOffscreenMs(0);
               setStabilizeMs(0);
@@ -266,8 +357,8 @@ export default function SessionPage() {
     rafRef.current = requestAnimationFrame(loop);
   };
 
-  // ── Calibration ──────────────────────────────────────────────────────────────
-  // Called once calibration readings are collected — builds baseline or reports error.
+  // ── Calibration ───────────────────────────────────────────────────────────────
+
   const finishCalibration = () => {
     if (calibTimerRef.current) { clearInterval(calibTimerRef.current); calibTimerRef.current = null; }
     const report = AttentionDetector.buildCalibration(
@@ -276,11 +367,8 @@ export default function SessionPage() {
       videoRef.current?.videoHeight || 720
     );
     if (!report.ok || !report.baseline) {
-      // Surface the most relevant hint from recent readings for extra context
-      const recentReadings = calibReadingsRef.current.slice(-10);
-      const lightingHint = recentReadings.find(
-        (r) => r.lightingCondition === 'dark' || r.lightingCondition === 'backlit'
-      );
+      const recent = calibReadingsRef.current.slice(-10);
+      const lightingHint = recent.find((r) => r.lightingCondition === 'dark' || r.lightingCondition === 'backlit');
       const extra = lightingHint?.lightingCondition === 'dark'
         ? ' Try turning on a light or moving closer to a window.'
         : lightingHint?.lightingCondition === 'backlit'
@@ -298,13 +386,10 @@ export default function SessionPage() {
     setTimeout(() => { clearInterval(c); setAppState('focused'); }, COUNTDOWN_MS);
   };
 
-  // Starts (or restarts) the adaptive calibration sampling loop.
-  // Does NOT re-request camera permissions — stream must already be active.
   const runCalibration = () => {
     if (calibTimerRef.current) { clearInterval(calibTimerRef.current); calibTimerRef.current = null; }
     calibReadingsRef.current = [];
-    let goodSamples  = 0;
-    let totalSamples = 0;
+    let goodSamples = 0, totalSamples = 0;
     setCalibrationGoodSamples(0);
     setCalibStalled(false);
     setCameraError('');
@@ -312,51 +397,38 @@ export default function SessionPage() {
 
     calibTimerRef.current = setInterval(async () => {
       if (appStateRef.current !== 'calibrating' || !videoRef.current || !detectorRef.current) return;
-
       const r = await detectorRef.current.estimate(videoRef.current, null);
       calibReadingsRef.current.push(r);
       totalSamples++;
-
       if (r.facePresent && r.confidence >= CALIBRATION_GOOD_CONF) {
         goodSamples++;
         setCalibrationGoodSamples(goodSamples);
       }
-
-      // Stall detection: warn if progress is too slow
-      if (totalSamples === CALIBRATION_STALL_AT && goodSamples < CALIBRATION_STALL_MIN) {
-        setCalibStalled(true);
-      }
-
-      // Auto-proceed once enough quality samples are collected
-      if (goodSamples >= CALIBRATION_NEEDED) {
-        finishCalibration();
-        return;
-      }
-
-      // Hard limit reached — attempt to build from whatever was collected
-      if (totalSamples >= CALIBRATION_HARD_LIMIT) {
-        finishCalibration();
-      }
+      if (totalSamples === CALIBRATION_STALL_AT && goodSamples < CALIBRATION_STALL_MIN) setCalibStalled(true);
+      if (goodSamples >= CALIBRATION_NEEDED) { finishCalibration(); return; }
+      if (totalSamples >= CALIBRATION_HARD_LIMIT) finishCalibration();
     }, CALIBRATION_SAMPLE_MS);
   };
 
-  // ── Start session ────────────────────────────────────────────────────────────
+  // ── Start session ─────────────────────────────────────────────────────────────
+
   const startSession = async () => {
     try {
       setCameraError('');
       setManualZoom(1);
       setViolationCount(0);
+      violationRef.current = 0;
+      setPomodoroRound(1);
+      pomodoroRef.current = 1;
       setAppState('requesting_permission');
       setSummaryStats(null);
+      setSummaryId('');
       setRemainingMs(configRef.current.durationMinutes * 60_000);
       setAttention(null);
       statsRef.current = {
         startedAt: new Date().toISOString(),
-        totalFocusedMs: 0,
-        violationCount: 0,
-        longestDistractionMs: 0,
-        breakUsed: 0,
-        breakTimeUsedMs: 0
+        totalFocusedMs: 0, violationCount: 0,
+        longestDistractionMs: 0, breakUsed: 0, breakTimeUsedMs: 0,
       };
 
       if (!detectorRef.current) detectorRef.current = new AttentionDetector();
@@ -365,7 +437,7 @@ export default function SessionPage() {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
+        audio: false,
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -375,7 +447,6 @@ export default function SessionPage() {
 
       startTrackingLoop();
 
-      // Prime audio element to satisfy browser autoplay policy
       if (audioRef.current) {
         audioRef.current.volume = 1.0;
         try { await audioRef.current.play(); audioRef.current.pause(); audioRef.current.currentTime = 0; } catch { /* ok */ }
@@ -388,62 +459,80 @@ export default function SessionPage() {
     }
   };
 
-  // Retry calibration without re-requesting camera permissions.
-  const retryCalibration = () => {
-    runCalibration();
-  };
+  const retryCalibration = () => runCalibration();
 
   const takeBreak = () => {
     if (breakUsedRef.current >= configRef.current.breakLimit || appStateRef.current === 'violated') return;
-    setBreakUsed((p) => p + 1);
+    setBreakUsed((p) => { breakUsedRef.current = p + 1; return p + 1; });
     statsRef.current.breakUsed += 1;
     setBreakRemainingMs(configRef.current.breakDurationSec * 1000);
-    setAppState('break');
     setOffscreenMs(0);
+    sounds.breakStart();
+    setAppState('break');
   };
 
   const derivedState = getDerivedState({
     attention,
     offscreenMs,
-    thresholdMs: config.offscreenThresholdSec * 1000,
-    onBreak: appState === 'break',
-    violationActive: appState === 'violated'
+    thresholdMs:     config.offscreenThresholdSec * 1000,
+    onBreak:         appState === 'break',
+    violationActive: appState === 'violated',
   });
 
-  // ── Derived values for display ───────────────────────────────────────────────
-  const isActive     = !['idle', 'session_complete', 'camera_error'].includes(appState);
-  const elapsed      = totalMs - remainingMs;
+  const isActive  = !['idle', 'session_complete', 'camera_error'].includes(appState);
+  const elapsed   = totalMs - remainingMs;
   const liveFocusPct = elapsed > 0
     ? Math.round((statsRef.current.totalFocusedMs / elapsed) * 100)
     : 0;
-
   const distPct = config.offscreenThresholdSec > 0
     ? Math.min(100, (offscreenMs / (config.offscreenThresholdSec * 1000)) * 100)
     : 0;
+  const streamActive      = appState === 'camera_error' && streamRef.current !== null;
+  const selectedTask      = availableTasks.find((t) => t.id === selectedTaskId);
+  const pomodoroTotalRounds = config.breakLimit + 1;
+  const stabilizeRequired   = Math.min(5000, BASE_STABILIZE_MS + (violationCount - 1) * 500);
 
-  // True when camera_error but stream is still alive (calibration failure, not permission denied)
-  const streamActive = appState === 'camera_error' && streamRef.current !== null;
-
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      {/* ── Page header ───────────────────────────────────────────────────── */}
+
+      {/* Page header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Session</h1>
           {appState === 'countdown' && (
-            <p className="mt-0.5 text-sm text-zinc-400">Starting in {countdownLeft}…</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">Starting in {countdownLeft}…</p>
+          )}
+          {/* Task label */}
+          {isActive && selectedTask && !['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              <span className="text-muted-foreground">Working on </span>
+              <span className="font-medium text-foreground">{selectedTask.title}</span>
+            </p>
+          )}
+          {/* Pomodoro round indicator */}
+          {isActive && config.pomodoroEnabled && config.breakLimit > 0 && !['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
+            <p className="mt-0.5 text-xs text-zinc-600">
+              Round {pomodoroRound} of {pomodoroTotalRounds}
+            </p>
           )}
         </div>
+
         <div className="flex items-center gap-3">
           <StatusBadge state={appState} />
           {isActive && (
             <div className="flex gap-2">
-              {appState === 'calibrating' && (
+              {/* Hide/show camera */}
+              {!['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
                 <button
-                  onClick={resetSession}
-                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-500 transition"
+                  onClick={() => setCameraHidden((v) => !v)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground/30 transition"
+                  title="Toggle camera (H)"
                 >
+                  {cameraHidden ? 'Show camera' : 'Hide camera'}
+                </button>
+              )}
+              {appState === 'calibrating' && (
+                <button onClick={resetSession} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground/30 transition">
                   Cancel
                 </button>
               )}
@@ -451,13 +540,13 @@ export default function SessionPage() {
                 <>
                   <button
                     onClick={finishSession}
-                    className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:border-zinc-500 hover:text-white transition"
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-foreground/30 transition"
                   >
                     End Session
                   </button>
                   <button
                     onClick={resetSession}
-                    className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-500 transition"
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground/30 transition"
                   >
                     Reset
                   </button>
@@ -468,7 +557,7 @@ export default function SessionPage() {
         </div>
       </div>
 
-      {/* ── Idle / error: config + camera side-by-side ────────────────────── */}
+      {/* Idle / error */}
       {!isActive && (
         <div className="grid gap-5 lg:grid-cols-5">
           <div className="lg:col-span-3">
@@ -477,38 +566,29 @@ export default function SessionPage() {
               onChange={setConfig}
               onStart={startSession}
               disabled={appState !== 'idle' && appState !== 'camera_error'}
+              selectedTaskId={selectedTaskId}
+              onTaskChange={setSelectedTaskId}
             />
-
             {appState === 'camera_error' && (
               <div className="mt-3 rounded-xl border border-red-800/60 bg-red-900/20 px-4 py-3">
                 <p className="text-sm text-red-300">{cameraError}</p>
                 <div className="mt-3 flex gap-2">
                   {streamActive ? (
-                    <button
-                      onClick={retryCalibration}
-                      className="rounded-lg bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-600 transition"
-                    >
+                    <button onClick={retryCalibration} className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/70 transition">
                       Retry Calibration
                     </button>
                   ) : (
-                    <button
-                      onClick={startSession}
-                      className="rounded-lg bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-600 transition"
-                    >
+                    <button onClick={startSession} className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/70 transition">
                       Try Again
                     </button>
                   )}
-                  <button
-                    onClick={resetSession}
-                    className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 hover:border-zinc-500 transition"
-                  >
+                  <button onClick={resetSession} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:border-foreground/30 transition">
                     Cancel
                   </button>
                 </div>
               </div>
             )}
           </div>
-
           <div className="flex flex-col gap-5 lg:col-span-2">
             <CameraPanel
               videoRef={videoRef}
@@ -527,13 +607,13 @@ export default function SessionPage() {
         </div>
       )}
 
-      {/* ── Active session: ring + stats | camera ─────────────────────────── */}
+      {/* Active session */}
       {isActive && (
         <div className="grid gap-5 lg:grid-cols-5">
-          {/* Left: timer ring + live metrics */}
+          {/* Left: timer + stats + breaks + spotify */}
           <div className="flex flex-col gap-5 lg:col-span-2">
-            {/* Timer card */}
-            <div className="flex flex-col items-center rounded-2xl border border-zinc-800 bg-zinc-900/70 py-8 shadow-xl">
+            {/* Timer */}
+            <div className="flex flex-col items-center rounded-2xl border border-border bg-card py-8 shadow-xl">
               <FocusRing
                 remainingMs={remainingMs}
                 totalMs={totalMs}
@@ -543,15 +623,13 @@ export default function SessionPage() {
               />
             </div>
 
-            {/* Live metrics card — hidden during calibration/countdown */}
+            {/* Live stats */}
             {!['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 shadow-xl">
-                <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                  Live Stats
-                </h3>
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
+                <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Live</h3>
                 <div className="grid grid-cols-2 gap-y-5 gap-x-4">
                   <LiveStat
-                    label="Focus efficiency"
+                    label="Focus"
                     value={`${liveFocusPct}%`}
                     accent={liveFocusPct >= 80 ? 'text-green-400' : liveFocusPct >= 60 ? 'text-yellow-400' : 'text-red-400'}
                   />
@@ -562,37 +640,29 @@ export default function SessionPage() {
                   />
                 </div>
 
-                {/* Distraction bar */}
+                {/* Off-screen meter */}
                 <div className="mt-5">
                   <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
-                    <span>Off-screen meter</span>
+                    <span>Off-screen</span>
                     <span>{(offscreenMs / 1000).toFixed(1)}s / {config.offscreenThresholdSec}s</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
                     <div
-                      className={`h-full rounded-full transition-all duration-200 ${
-                        distPct > 80 ? 'bg-red-500' : distPct > 50 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
+                      className={`h-full rounded-full transition-all duration-200 ${distPct > 80 ? 'bg-red-500' : distPct > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
                       style={{ width: `${distPct}%` }}
                     />
                   </div>
                 </div>
 
-                {/* Confidence */}
                 {attention && (
                   <p className="mt-3 text-xs text-zinc-600">
-                    Detection confidence:{' '}
-                    <span className="text-zinc-400">{Math.round(attention.confidence * 100)}%</span>
+                    Confidence: <span className="text-zinc-400">{Math.round(attention.confidence * 100)}%</span>
                     {' · '}
-                    <span className={
-                      derivedState === 'focused' ? 'text-green-400' :
-                      derivedState === 'warning'  ? 'text-yellow-400' : 'text-red-400'
-                    }>
+                    <span className={derivedState === 'focused' ? 'text-green-400' : derivedState === 'warning' ? 'text-yellow-400' : 'text-red-400'}>
                       {derivedState}
                     </span>
                   </p>
                 )}
-
                 {attention?.guidance?.length ? (
                   <ul className="mt-2 space-y-0.5 text-xs text-amber-400">
                     {attention.guidance.slice(0, 2).map((h) => (
@@ -600,14 +670,21 @@ export default function SessionPage() {
                     ))}
                   </ul>
                 ) : null}
+
+                {/* Keyboard hint */}
+                <div className="mt-3 flex gap-3 text-[10px] text-zinc-700">
+                  <span><kbd className="rounded bg-muted px-1 py-0.5">B</kbd> break</span>
+                  <span><kbd className="rounded bg-muted px-1 py-0.5">E</kbd> end</span>
+                  <span><kbd className="rounded bg-muted px-1 py-0.5">H</kbd> camera</span>
+                </div>
               </div>
             )}
 
-            {/* Break controls */}
+            {/* Breaks */}
             {['focused', 'warning', 'break'].includes(appState) && config.breakLimit > 0 && (
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 shadow-xl">
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                  Breaks
+                  Breaks {config.pomodoroEnabled && <span className="text-muted-foreground/50 normal-case font-normal">· auto</span>}
                 </h3>
                 <BreakControls
                   breakUsed={breakUsed}
@@ -620,50 +697,61 @@ export default function SessionPage() {
               </div>
             )}
 
-            {/* Spotify — compact strip during active session */}
+            {/* Spotify */}
             <SpotifyPanel compact />
           </div>
 
           {/* Right: camera */}
           <div className="lg:col-span-3">
-            <CameraPanel
-              videoRef={videoRef}
-              attention={attention}
-              calibrating={appState === 'calibrating'}
-              calibrationGoodSamples={calibrationGoodSamples}
-              calibrationNeeded={CALIBRATION_NEEDED}
-              calibrationStalled={calibStalled}
-              countdownLeft={countdownLeft}
-              zoomLevel={manualZoom}
-              onZoomIn={() => {
-                const n = Math.min(2, manualZoom + 0.1);
-                setManualZoom(n);
-                detectorRef.current?.setManualZoom(n);
-              }}
-              onZoomOut={() => {
-                const n = Math.max(1, manualZoom - 0.1);
-                setManualZoom(n);
-                detectorRef.current?.setManualZoom(n);
-              }}
-            />
+            {cameraHidden ? (
+              <div className="flex h-full min-h-[300px] items-center justify-center rounded-2xl border border-border bg-card/40">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Camera hidden</p>
+                  <button
+                    onClick={() => setCameraHidden(false)}
+                    className="mt-3 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition"
+                  >
+                    Show camera
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <CameraPanel
+                videoRef={videoRef}
+                attention={attention}
+                calibrating={appState === 'calibrating'}
+                calibrationGoodSamples={calibrationGoodSamples}
+                calibrationNeeded={CALIBRATION_NEEDED}
+                calibrationStalled={calibStalled}
+                countdownLeft={countdownLeft}
+                zoomLevel={manualZoom}
+                onZoomIn={() => { const n = Math.min(2, manualZoom + 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
+                onZoomOut={() => { const n = Math.max(1, manualZoom - 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
+              />
+            )}
           </div>
         </div>
       )}
 
-      {/* Hidden audio element */}
+      {/* Hidden audio */}
       <video ref={audioRef} className="hidden" src={config.punishmentMedia} preload="auto" playsInline loop />
 
       {/* Violation overlay */}
       <ViolationOverlay
         visible={appState === 'violated'}
         stabilizeMs={stabilizeMs}
-        maxStabilizeMs={STABILIZE_MS}
+        maxStabilizeMs={stabilizeRequired}
         violationCount={violationCount}
       />
 
       {/* Session summary */}
       {summaryStats && (
-        <SessionSummary stats={summaryStats} config={config} onReset={resetSession} />
+        <SessionSummary
+          sessionId={summaryId}
+          stats={summaryStats}
+          config={config}
+          onReset={resetSession}
+        />
       )}
     </main>
   );

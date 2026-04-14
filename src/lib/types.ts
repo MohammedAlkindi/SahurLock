@@ -19,6 +19,7 @@ export interface SessionConfig {
   breakDurationSec: number;
   punishmentEnabled: boolean;
   punishmentMedia: string;
+  pomodoroEnabled: boolean;
 }
 
 export interface SessionPreset {
@@ -37,6 +38,8 @@ export interface SessionStats {
   breakUsed: number;
   breakTimeUsedMs: number;
   focusScore?: number;
+  taskTitle?: string;
+  notes?: string;
 }
 
 export interface AggregateStats {
@@ -64,30 +67,22 @@ export interface PixelBox {
   height: number;
 }
 
-// Normalized (0–1) point relative to video frame
 export interface NormPoint {
   x: number;
   y: number;
 }
 
-// Full per-eye data in normalized (0–1) video-frame coordinates
 export interface EyeData {
-  // Bounding box
   x: number;
   y: number;
   width: number;
   height: number;
-  // Iris center
   irisX: number;
   irisY: number;
-  // Iris radius (normalized by frame width)
   irisRadius: number;
-  // Normalized gaze direction vector (offset of iris from eye center, per eye)
   gazeX: number;
   gazeY: number;
-  // Per-eye eye-aspect-ratio (0 = closed, higher = more open)
   openRatio: number;
-  // Full eyelid contour for drawing
   contour: NormPoint[];
 }
 
@@ -135,4 +130,17 @@ export interface RuntimeState {
   remainingMs: number;
   offscreenMs: number;
   violationActive: boolean;
+}
+
+// ── Tasks ──────────────────────────────────────────────────────────────────────
+
+export type TaskStatus = 'active' | 'done';
+
+export interface Task {
+  id: string;
+  title: string;
+  createdAt: string;
+  completedAt?: string;
+  sessionCount: number;
+  status: TaskStatus;
 }

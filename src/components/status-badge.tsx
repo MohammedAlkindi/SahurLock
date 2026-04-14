@@ -1,7 +1,7 @@
 'use client';
 
 import { AppState } from '@/lib/types';
-import clsx from 'clsx';
+import { cn } from '@/lib/cn';
 
 const labelMap: Record<AppState, string> = {
   idle: 'Idle',
@@ -17,16 +17,20 @@ const labelMap: Record<AppState, string> = {
 };
 
 export function StatusBadge({ state }: { state: AppState }) {
+  if (state === 'idle') return null;
   return (
     <span
-      className={clsx('rounded-full px-4 py-2 text-sm font-semibold', {
-        'bg-zinc-700 text-white': ['idle', 'requesting_permission', 'countdown'].includes(state),
-        'bg-blue-600 text-white': state === 'calibrating',
-        'bg-green-600 text-white': state === 'focused',
-        'bg-yellow-500 text-black': state === 'warning' || state === 'break',
-        'bg-red-600 text-white': state === 'violated' || state === 'camera_error',
-        'bg-purple-600 text-white': state === 'session_complete'
-      })}
+      className={cn(
+        'rounded-full px-3.5 py-1.5 text-xs font-bold tracking-wide',
+        ['requesting_permission', 'countdown'].includes(state) && 'bg-muted text-muted-foreground',
+        state === 'calibrating'     && 'bg-blue-500/15 text-blue-400',
+        state === 'focused'         && 'bg-green-500/15 text-green-400 shadow-[0_0_8px_0_rgba(34,197,94,0.25)]',
+        state === 'warning'         && 'bg-yellow-500/15 text-yellow-400',
+        state === 'break'           && 'bg-yellow-500/15 text-yellow-400',
+        state === 'violated'        && 'bg-red-500/15 text-red-400 shadow-[0_0_8px_0_rgba(239,68,68,0.3)]',
+        state === 'camera_error'    && 'bg-red-500/15 text-red-400',
+        state === 'session_complete' && 'bg-purple-500/15 text-purple-400',
+      )}
     >
       {labelMap[state]}
     </span>

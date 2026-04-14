@@ -1,6 +1,8 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
+import { ThemeProvider } from 'next-themes';
 
 export const metadata: Metadata = {
   title: 'SahurLock — Browser-based attention tracking',
@@ -10,39 +12,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <nav className="sticky top-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-lg font-black tracking-tight hover:text-green-400 transition-colors"
-            >
-              <span className="text-green-400">S</span>ahurLock
-            </Link>
-            <div className="flex items-center gap-1">
-              <Link
-                href="/session"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
-              >
-                Session
-              </Link>
-              <Link
-                href="/stats"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
-              >
-                Stats
-              </Link>
-              <Link
-                href="/session"
-                className="ml-2 rounded-lg bg-green-500 px-4 py-1.5 text-sm font-semibold text-black hover:bg-green-400 transition-colors"
-              >
-                New Session
-              </Link>
-            </div>
-          </div>
-        </nav>
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

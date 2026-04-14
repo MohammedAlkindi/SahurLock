@@ -2,12 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ───────────────────────────────────────────────────────── */
 :root {
+  --background: #191919;
+  --foreground: #e4e4e7;
+  --muted: #27272a;
+  --muted-foreground: #71717a;
+  --border: #27272a;
+  --card: #1c1c1e;
+  --card-foreground: #e4e4e7;
+  --accent: #22c55e;
+  --accent-foreground: #052e16;
+  --ring: #22c55e40;
   color-scheme: dark;
 }
 
+.light {
+  --background: #fbfbfa;
+  --foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --accent: #16a34a;
+  --accent-foreground: #f0fdf4;
+  --ring: #16a34a40;
+  color-scheme: light;
+}
+
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+  background-color: var(--background);
+  color: var(--foreground);
+  @apply antialiased;
 }
 
 /* ── Violation overlay animations ────────────────────────────────────────── */

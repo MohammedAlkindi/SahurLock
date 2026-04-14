@@ -17,7 +17,8 @@
       "Bash(grep -v '^\\\\.git$')",
       "Bash(grep -v '^node_modules$')",
       "Bash(grep -v '^\\\\.next$')",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(npm install:*)"
     ]
   }
 }

@@ -78,24 +78,11 @@ export function useSpotify(): UseSpotifyReturn {
     return unsub;
   }, [service]);
 
-  // ── Consume OAuth callback on mount ───────────────────────────────────────
+  // ── Re-sync connected state on mount (tokens may have been saved by the
+  //    /spotify/callback page before this hook mounted on /session) ──────────
 
   useEffect(() => {
-    // Check for error from callback redirect
-    const cbError = service.consumeCallbackError();
-    if (cbError) {
-      setError(
-        cbError === 'access_denied'
-          ? 'Spotify login was cancelled.'
-          : cbError === 'state_mismatch'
-          ? 'Login failed: security check failed. Please try again.'
-          : 'Spotify login failed. Please try again.'
-      );
-    }
-
-    // Parse tokens from hash fragment if present
-    const gotTokens = service.handleHashCallback();
-    if (gotTokens) setConnected(true);
+    setConnected(service.isConnected);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Init player + fetch profile when connected ────────────────────────────
