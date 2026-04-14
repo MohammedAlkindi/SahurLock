@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BreakControls } from '@/components/break-controls';
 import { CameraPanel } from '@/components/camera-panel';
+import { SpotifyPanel } from '@/components/spotify-panel';
 import { FocusRing } from '@/components/focus-ring';
 import { SessionConfigCard } from '@/components/session-config';
 import { SessionSummary } from '@/components/session-summary';
@@ -508,7 +509,7 @@ export default function SessionPage() {
             )}
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="flex flex-col gap-5 lg:col-span-2">
             <CameraPanel
               videoRef={videoRef}
               attention={attention}
@@ -521,6 +522,7 @@ export default function SessionPage() {
               onZoomIn={() => {}}
               onZoomOut={() => {}}
             />
+            <SpotifyPanel />
           </div>
         </div>
       )}
@@ -617,6 +619,9 @@ export default function SessionPage() {
                 />
               </div>
             )}
+
+            {/* Spotify — compact strip during active session */}
+            <SpotifyPanel compact />
           </div>
 
           {/* Right: camera */}
