@@ -14,6 +14,8 @@ import {
   Sun,
   Moon,
   Layers,
+  Settings2,
+  Clock,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/cn';
@@ -24,6 +26,7 @@ const NAV = [
   { href: '/stats',      icon: BarChart2,   label: 'Stats'      },
   { href: '/notes',      icon: NotebookPen, label: 'Notes'      },
   { href: '/flashcards', icon: Layers,      label: 'Flashcards' },
+  { href: '/timer',      icon: Clock,       label: 'Timer'      },
 ];
 
 const COLLAPSED_KEY = 'sahurlock.sidebar.collapsed';
@@ -49,6 +52,8 @@ export function Sidebar() {
       return next;
     });
   };
+
+  const settingsActive = pathname.startsWith('/settings');
 
   return (
     <aside
@@ -94,6 +99,23 @@ export function Sidebar() {
 
       {/* Bottom actions */}
       <div className="border-t border-border p-2 space-y-0.5">
+        {/* Settings */}
+        <Link
+          href="/settings"
+          title={collapsed ? 'Settings' : undefined}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors',
+            collapsed && 'justify-center',
+            settingsActive
+              ? 'bg-accent/10 text-accent'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          )}
+        >
+          <Settings2 size={17} className="shrink-0" />
+          {!collapsed && <span>Settings</span>}
+        </Link>
+
+        {/* Theme toggle */}
         {mounted && (
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -111,6 +133,7 @@ export function Sidebar() {
           </button>
         )}
 
+        {/* Collapse toggle */}
         <button
           onClick={toggle}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

@@ -57,50 +57,52 @@ export default function LandingPage() {
         </div>
       </nav>
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden px-4 pb-24 pt-20 text-center">
+      <section className="relative overflow-hidden px-4 pb-16 pt-14 text-center">
         <div className="pointer-events-none absolute inset-0 -z-10 flex items-start justify-center overflow-hidden">
-          <div className="h-[600px] w-[900px] rounded-full bg-green-500/8 blur-[120px]" />
+          <div className="h-[500px] w-[800px] rounded-full bg-green-500/8 blur-[120px]" />
         </div>
 
-        <h1 className="mx-auto max-w-3xl text-5xl font-black leading-[1.08] tracking-tight md:text-6xl">
-          Attention tracking{' '}
-          <span className="text-green-400">with real consequences.</span>
-        </h1>
+        <div className="mx-auto max-w-2xl">
+          <h1 className="text-[3.25rem] font-black leading-[1.05] tracking-tight md:text-[4rem]">
+            Attention tracking{' '}
+            <span className="text-green-400">with real consequences.</span>
+          </h1>
 
-        <p className="mx-auto mt-6 max-w-lg text-base text-zinc-400">
-          Your webcam watches. Look away too long and a fullscreen alert locks you
-          out until you come back. No escape.
-        </p>
+          <p className="mx-auto mt-4 max-w-md text-[0.9375rem] leading-relaxed text-zinc-400">
+            Your webcam watches. Look away too long and a fullscreen alert locks you
+            out until you come back. No escape.
+          </p>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/session"
-            className="rounded-lg bg-green-500 px-7 py-3 text-sm font-semibold text-black transition hover:bg-green-400"
-          >
-            Start a session
-          </Link>
-          <Link
-            href="/stats"
-            className="rounded-lg border border-zinc-700 px-7 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-          >
-            View stats
-          </Link>
-        </div>
-
-        {/* Detector output preview */}
-        <div className="mx-auto mt-14 max-w-xs rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-left font-mono text-xs">
-          <div className="mb-3 flex gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
-            <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
-            <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+            <Link
+              href="/session"
+              className="rounded-lg bg-green-500 px-6 py-2.5 text-sm font-semibold text-black transition hover:bg-green-400"
+            >
+              Start a session
+            </Link>
+            <Link
+              href="/stats"
+              className="rounded-lg border border-zinc-700 px-6 py-2.5 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+            >
+              View stats
+            </Link>
           </div>
-          <p className="text-zinc-600">attention-detector v0.1</p>
-          <p className="mt-2 text-green-500">face_detected     true</p>
-          <p className="text-green-500">gaze_on_screen    true</p>
-          <p className="text-green-500">confidence        0.94</p>
-          <p className="mt-2 text-zinc-600">— 4.2s elapsed —</p>
-          <p className="text-red-400">attention         offscreen</p>
-          <p className="text-red-400">alert             triggered</p>
+
+          {/* Detector output preview */}
+          <div className="mx-auto mt-8 max-w-[17rem] rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-left font-mono text-xs shadow-xl shadow-black/40">
+            <div className="mb-3 flex gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+              <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+              <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+            </div>
+            <p className="text-zinc-600">attention-detector v0.1</p>
+            <p className="mt-2 text-green-500">face_detected     true</p>
+            <p className="text-green-500">gaze_on_screen    true</p>
+            <p className="text-green-500">confidence        0.94</p>
+            <p className="mt-2 text-zinc-600">— 4.2s elapsed —</p>
+            <p className="text-red-400">attention         offscreen</p>
+            <p className="text-red-400">alert             triggered</p>
+          </div>
         </div>
       </section>
 
