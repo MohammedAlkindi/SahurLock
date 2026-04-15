@@ -10,6 +10,13 @@ import { SessionSummary } from '@/components/session-summary';
 import { StatusBadge } from '@/components/status-badge';
 import { ViolationOverlay } from '@/components/violation-overlay';
 import { AttentionDetector } from '@/lib/attention-detector';
+import { PhoneDetector, PhoneReading } from '@/lib/phone-detector';
+import { computeDetailedScore } from '@/lib/focus-score';
+import {
+  Flashcard, ReviewResult,
+  applyReview, loadCards, saveCards, selectSessionCards,
+} from '@/lib/flashcards';
+import { FlashcardOverlay } from '@/components/flashcard-overlay';
 import { getDerivedState } from '@/lib/session-machine';
 import {
   incrementTaskSessionCount,
@@ -29,19 +36,23 @@ import {
   SessionStats,
   Task,
 } from '@/lib/types';
-import { calculateFocusScore, uid } from '@/lib/utils';
+import { uid } from '@/lib/utils';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const DEFAULTS: SessionConfig = {
-  durationMinutes:      25,
+  durationMinutes:       25,
   offscreenThresholdSec: 6,
-  breakLimit:           3,
-  breakDurationSec:     300,
-  punishmentEnabled:    true,
-  punishmentMedia:      '/media/sahur.mp4',
-  pomodoroEnabled:      true,
+  breakLimit:            3,
+  breakDurationSec:      300,
+  punishmentEnabled:     true,
+  punishmentMedia:       '/media/sahur.mp4',
+  pomodoroEnabled:       true,
+  phoneDetectionEnabled: false,
 };
+
+// How long (ms) a hand must be near the face before triggering a violation
+const PHONE_CHECK_THRESHOLD_MS = 2500;
 
 const BASE_STABILIZE_MS      = 2000;
 const CALIBRATION_NEEDED     = 25;
@@ -86,6 +97,23 @@ export default function SessionPage() {
   const [cameraHidden, setCameraHidden]       = useState(false);
   const [pomodoroRound, setPomodoroRound]     = useState(1);
 
+  // Phone detection
+  const [phoneReading, setPhoneReading]       = useState<PhoneReading | null>(null);
+  const [phoneCheckMs, setPhoneCheckMs]       = useState(0);
+  const [phoneCheckCount, setPhoneCheckCount] = useState(0);
+  const phoneDetectorRef  = useRef<PhoneDetector | null>(null);
+  const phoneCheckRef     = useRef(0);
+
+  // Focus score (live)
+  const [liveScore, setLiveScore]             = useState(0);
+  const liveScoreRef      = useRef(0);   // latest value accessible synchronously
+  const liveScoreFrameRef = useRef(0);   // frame counter for throttled update
+
+  // Flashcards
+  const [showFlashcards, setShowFlashcards]   = useState(false);
+  const [sessionCards, setSessionCards]       = useState<Flashcard[]>([]);
+  const violationStartRef = useRef(0);         // performance.now() when violation begins
+
   // Task selection
   const [selectedTaskId, setSelectedTaskId]   = useState('');
   const [availableTasks, setAvailableTasks]   = useState<Task[]>([]);
@@ -108,6 +136,7 @@ export default function SessionPage() {
   const statsRef = useRef<SessionStats>({
     startedAt: '', totalFocusedMs: 0, violationCount: 0,
     longestDistractionMs: 0, breakUsed: 0, breakTimeUsedMs: 0,
+    phoneCheckCount: 0, recoveryTimes: [], focusTransitions: 0,
   });
 
   const totalMs = useMemo(() => config.durationMinutes * 60_000, [config.durationMinutes]);
@@ -125,6 +154,16 @@ export default function SessionPage() {
     setRemainingMs(saved.durationMinutes * 60_000);
     setAvailableTasks(loadTasks().filter((t) => t.status === 'active'));
   }, []);
+
+  // Show flashcards whenever a break begins (if the deck is non-empty)
+  useEffect(() => {
+    if (appState !== 'break') return;
+    const all = loadCards();
+    if (all.length === 0) return;
+    const picked = selectSessionCards(all, liveScoreRef.current, 3);
+    setSessionCards(picked);
+    setShowFlashcards(true);
+  }, [appState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { saveSettings(config); }, [config]);
 
@@ -178,6 +217,15 @@ export default function SessionPage() {
     setCalibStalled(false);
     setCountdownLeft(0);
     setViolationCount(0);
+    setPhoneCheckCount(0);
+    setPhoneCheckMs(0);
+    setPhoneReading(null);
+    phoneCheckRef.current = 0;
+    setLiveScore(0);
+    liveScoreRef.current = 0;
+    liveScoreFrameRef.current = 0;
+    setShowFlashcards(false);
+    setSessionCards([]);
     setPomodoroRound(1);
     pomodoroRef.current = 1;
     violationRef.current = 0;
@@ -192,12 +240,7 @@ export default function SessionPage() {
 
   const finishSession = () => {
     cleanupMedia();
-    const sessionDurationMs = configRef.current.durationMinutes * 60_000;
-    const focusScore = calculateFocusScore(
-      statsRef.current.totalFocusedMs,
-      sessionDurationMs,
-      statsRef.current.violationCount
-    );
+    const focusScore = computeDetailedScore(statsRef.current, configRef.current).total;
 
     // Resolve task info
     const task = availableTasks.find((t) => t.id === selectedTaskId);
@@ -230,6 +273,7 @@ export default function SessionPage() {
   };
 
   const triggerPunishment = async () => {
+    violationStartRef.current = performance.now();
     const newCount = violationRef.current + 1;
     violationRef.current = newCount;
     statsRef.current.violationCount = newCount;
@@ -312,14 +356,37 @@ export default function SessionPage() {
       const warning   = !reading || reading.attention === 'warning';
       const uncertain = !reading || reading.attention === 'uncertain';
 
+      // ── Phone detection ───────────────────────────────────────────────────
+      let phoneRead: PhoneReading | null = null;
+      if (configRef.current.phoneDetectionEnabled && reading?.facePresent && reading?.faceBox && videoRef.current) {
+        if (!phoneDetectorRef.current) phoneDetectorRef.current = new PhoneDetector();
+        phoneRead = phoneDetectorRef.current.estimate(videoRef.current, reading.faceBox);
+        setPhoneReading(phoneRead);
+      } else {
+        setPhoneReading(null);
+      }
+
       // Stabilize required scales up with violations
       const stabilizeRequired = Math.min(5000, BASE_STABILIZE_MS + (violationRef.current - 1) * 500);
+
+      // ── Throttled live score update (every ~45 frames ≈ 1.5 s) ─────────────
+      liveScoreFrameRef.current++;
+      if (liveScoreFrameRef.current % 45 === 0 && ['focused', 'warning'].includes(state)) {
+        const s = computeDetailedScore(statsRef.current, configRef.current).total;
+        liveScoreRef.current = s;
+        setLiveScore(s);
+      }
 
       if (state === 'violated') {
         if (!offscreen && !uncertain && !warning) {
           setStabilizeMs((prev) => {
             const next = prev + delta;
             if (next >= stabilizeRequired) {
+              // Record how long this recovery took
+              statsRef.current.recoveryTimes = [
+                ...(statsRef.current.recoveryTimes ?? []),
+                performance.now() - violationStartRef.current,
+              ];
               audioRef.current?.pause();
               setOffscreenMs(0);
               setStabilizeMs(0);
@@ -339,6 +406,10 @@ export default function SessionPage() {
             if (next >= configRef.current.offscreenThresholdSec * 1000 && offscreen) {
               triggerPunishment();
             } else if (next >= configRef.current.offscreenThresholdSec * 350) {
+              // Count first entry into warning (not repeated calls while already in warning)
+              if (state === 'focused') {
+                statsRef.current.focusTransitions = (statsRef.current.focusTransitions ?? 0) + 1;
+              }
               setAppState('warning');
             } else if (uncertain) {
               setAppState('warning');
@@ -349,6 +420,29 @@ export default function SessionPage() {
           statsRef.current.totalFocusedMs += delta;
           setOffscreenMs(0);
           if (state !== 'focused') setAppState('focused');
+        }
+
+        // ── Phone check sub-timer (only fires when face is present & on-screen) ──
+        if (configRef.current.phoneDetectionEnabled && phoneRead?.detected && !offscreen) {
+          setPhoneCheckMs((prev) => {
+            const next = prev + delta;
+            if (next >= PHONE_CHECK_THRESHOLD_MS) {
+              // Record as a phone-specific violation, then trigger shared punishment
+              const newPhoneCount = phoneCheckRef.current + 1;
+              phoneCheckRef.current = newPhoneCount;
+              setPhoneCheckCount(newPhoneCount);
+              statsRef.current.phoneCheckCount = newPhoneCount;
+              triggerPunishment();
+              return 0;
+            }
+            // Warn at 40% of threshold (same proportion as offscreen warning)
+            if (next >= PHONE_CHECK_THRESHOLD_MS * 0.4 && state === 'focused') {
+              setAppState('warning');
+            }
+            return next;
+          });
+        } else {
+          setPhoneCheckMs(0);
         }
       }
 
@@ -429,7 +523,11 @@ export default function SessionPage() {
         startedAt: new Date().toISOString(),
         totalFocusedMs: 0, violationCount: 0,
         longestDistractionMs: 0, breakUsed: 0, breakTimeUsedMs: 0,
+        phoneCheckCount: 0, recoveryTimes: [], focusTransitions: 0,
       };
+      phoneCheckRef.current = 0;
+      liveScoreRef.current = 0;
+      liveScoreFrameRef.current = 0;
 
       if (!detectorRef.current) detectorRef.current = new AttentionDetector();
       await detectorRef.current.init();
@@ -469,6 +567,16 @@ export default function SessionPage() {
     setOffscreenMs(0);
     sounds.breakStart();
     setAppState('break');
+  };
+
+  const handleFlashcardComplete = (results: ReviewResult[]) => {
+    const cards   = loadCards();
+    const updated = cards.map((c) => {
+      const r = results.find((x) => x.cardId === c.id);
+      return r ? applyReview(c, r.grade) : c;
+    });
+    saveCards(updated);
+    setShowFlashcards(false);
   };
 
   const derivedState = getDerivedState({
@@ -634,10 +742,22 @@ export default function SessionPage() {
                     accent={liveFocusPct >= 80 ? 'text-green-400' : liveFocusPct >= 60 ? 'text-yellow-400' : 'text-red-400'}
                   />
                   <LiveStat
+                    label="Score"
+                    value={liveScore}
+                    accent={liveScore >= 80 ? 'text-green-400' : liveScore >= 60 ? 'text-yellow-400' : 'text-red-400'}
+                  />
+                  <LiveStat
                     label="Violations"
                     value={violationCount}
                     accent={violationCount === 0 ? 'text-green-400' : 'text-red-400'}
                   />
+                  {config.phoneDetectionEnabled && (
+                    <LiveStat
+                      label="Phone checks"
+                      value={phoneCheckCount}
+                      accent={phoneCheckCount === 0 ? 'text-green-400' : 'text-orange-400'}
+                    />
+                  )}
                 </div>
 
                 {/* Off-screen meter */}
@@ -727,6 +847,9 @@ export default function SessionPage() {
                 zoomLevel={manualZoom}
                 onZoomIn={() => { const n = Math.min(2, manualZoom + 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
                 onZoomOut={() => { const n = Math.max(1, manualZoom - 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
+                phoneReading={phoneReading}
+                phoneCheckMs={phoneCheckMs}
+                phoneCheckThresholdMs={PHONE_CHECK_THRESHOLD_MS}
               />
             )}
           </div>
@@ -735,6 +858,16 @@ export default function SessionPage() {
 
       {/* Hidden audio */}
       <video ref={audioRef} className="hidden" src={config.punishmentMedia} preload="auto" playsInline loop />
+
+      {/* Flashcard overlay (shown during breaks) */}
+      {showFlashcards && sessionCards.length > 0 && (
+        <FlashcardOverlay
+          cards={sessionCards}
+          focusScore={liveScore}
+          onComplete={handleFlashcardComplete}
+          onDismiss={() => setShowFlashcards(false)}
+        />
+      )}
 
       {/* Violation overlay */}
       <ViolationOverlay

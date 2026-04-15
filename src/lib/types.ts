@@ -20,6 +20,7 @@ export interface SessionConfig {
   punishmentEnabled: boolean;
   punishmentMedia: string;
   pomodoroEnabled: boolean;
+  phoneDetectionEnabled: boolean;
 }
 
 export interface SessionPreset {
@@ -40,6 +41,11 @@ export interface SessionStats {
   focusScore?: number;
   taskTitle?: string;
   notes?: string;
+  phoneCheckCount?: number;
+  /** Recovery duration (ms) for each violation — used by the detailed score formula */
+  recoveryTimes?: number[];
+  /** Count of distinct "warning" state entries — used as stability metric */
+  focusTransitions?: number;
 }
 
 export interface AggregateStats {

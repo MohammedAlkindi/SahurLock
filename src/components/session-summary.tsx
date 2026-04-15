@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { updateSessionNotes } from '@/lib/storage';
 import { SessionConfig, SessionStats } from '@/lib/types';
-import { calculateFocusScore, formatFocusTime, formatTime, getFocusGrade } from '@/lib/utils';
+import { formatFocusTime, formatTime, getFocusGrade } from '@/lib/utils';
+import { computeDetailedScore } from '@/lib/focus-score';
+import { ScoreBreakdownPanel } from '@/components/score-breakdown';
 
 interface Props {
   sessionId: string;
@@ -25,13 +27,10 @@ function StatRow({ label, value, highlight }: { label: string; value: string; hi
 }
 
 export function SessionSummary({ sessionId, stats, config, onReset }: Props) {
+  const breakdown       = computeDetailedScore(stats, config);
+  const score           = stats.focusScore ?? breakdown.total;
+  const grade           = getFocusGrade(score);
   const sessionDurationMs = config.durationMinutes * 60_000;
-  const score = stats.focusScore ?? calculateFocusScore(
-    stats.totalFocusedMs,
-    sessionDurationMs,
-    stats.violationCount
-  );
-  const grade = getFocusGrade(score);
 
   const focusPct = sessionDurationMs > 0
     ? Math.round((stats.totalFocusedMs / sessionDurationMs) * 100)
@@ -96,12 +95,25 @@ export function SessionSummary({ sessionId, stats, config, onReset }: Props) {
           <div className="mb-4 space-y-2">
             <StatRow label="Focused time"        value={formatFocusTime(stats.totalFocusedMs)} highlight />
             <StatRow label="Total violations"    value={String(stats.violationCount)} />
+            {(stats.phoneCheckCount ?? 0) > 0 && (
+              <StatRow label="Phone checks" value={String(stats.phoneCheckCount)} />
+            )}
             <StatRow label="Longest distraction" value={formatTime(stats.longestDistractionMs)} />
             <StatRow label="Breaks used"         value={`${stats.breakUsed} / ${config.breakLimit}`} />
             {stats.breakUsed > 0 && (
               <StatRow label="Total break time"  value={formatFocusTime(stats.breakTimeUsedMs)} />
             )}
           </div>
+
+          {/* Score breakdown */}
+          <details className="mb-4 rounded-xl border border-zinc-800 bg-zinc-800/30">
+            <summary className="cursor-pointer select-none px-4 py-2.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+              Score breakdown ▸
+            </summary>
+            <div className="border-t border-zinc-800 px-4 py-4">
+              <ScoreBreakdownPanel breakdown={breakdown} showHeader={false} />
+            </div>
+          </details>
 
           {/* Notes */}
           <textarea

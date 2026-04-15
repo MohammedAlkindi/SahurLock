@@ -194,6 +194,21 @@ export function SessionConfigCard({ value, onChange, onStart, disabled, selected
         )}
       </div>
 
+      {/* Phone detection */}
+      <div className="mt-4 border-t border-zinc-800 pt-4">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            checked={value.phoneDetectionEnabled}
+            disabled={disabled}
+            onChange={(e) => onChange({ ...value, phoneDetectionEnabled: e.target.checked })}
+            className="h-4 w-4 rounded accent-green-500"
+          />
+          <span>Phone detection</span>
+          <span className="text-xs text-zinc-600">— flags hand-to-face posture via webcam</span>
+        </label>
+      </div>
+
       {/* Task selector */}
       <div className="mt-4 border-t border-zinc-800 pt-4">
         <p className="mb-2 text-xs font-medium text-zinc-400">Working on</p>

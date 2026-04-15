@@ -10,14 +10,12 @@ import {
   loadHistory,
 } from '@/lib/storage';
 import { AggregateStats, SessionHistoryItem } from '@/lib/types';
-import { calculateFocusScore, formatFocusTime, formatTime, getFocusGrade } from '@/lib/utils';
+import { formatFocusTime, formatTime, getFocusGrade } from '@/lib/utils';
+import { computeDetailedScore } from '@/lib/focus-score';
+import { ScoreBreakdownPanel } from '@/components/score-breakdown';
 
 function safeScore(item: SessionHistoryItem): number {
-  const s = item.stats.focusScore ?? calculateFocusScore(
-    item.stats.totalFocusedMs,
-    item.config.durationMinutes * 60_000,
-    item.stats.violationCount,
-  );
+  const s = item.stats.focusScore ?? computeDetailedScore(item.stats, item.config).total;
   return Number.isNaN(s) ? 0 : s;
 }
 
@@ -221,12 +219,10 @@ export default function StatsPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-1">
-                              {hasNotes && (
-                                <ChevronDown
-                                  size={13}
-                                  className={`text-muted-foreground/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                                />
-                              )}
+                              <ChevronDown
+                                size={13}
+                                className={`text-muted-foreground/40 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              />
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                                 className="rounded p-1.5 text-muted-foreground/30 transition hover:bg-muted hover:text-red-400"
@@ -238,13 +234,22 @@ export default function StatsPage() {
                           </td>
                         </tr>
                         {isExpanded && (
-                          <tr key={`${item.id}-notes`} className="border-b border-border/40 bg-muted/10">
-                            <td colSpan={7} className="px-5 py-3">
-                              {hasNotes ? (
-                                <p className="text-xs text-muted-foreground whitespace-pre-wrap">{item.stats.notes}</p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground/40 italic">No notes for this session.</p>
-                              )}
+                          <tr key={`${item.id}-detail`} className="border-b border-border/40 bg-muted/10">
+                            <td colSpan={7} className="px-5 py-4">
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                <ScoreBreakdownPanel
+                                  breakdown={computeDetailedScore(item.stats, item.config)}
+                                  showHeader
+                                />
+                                {hasNotes && (
+                                  <div>
+                                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                      Notes
+                                    </p>
+                                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{item.stats.notes}</p>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )}

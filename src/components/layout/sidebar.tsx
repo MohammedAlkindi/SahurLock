@@ -13,15 +13,17 @@ import {
   Zap,
   Sun,
   Moon,
+  Layers,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/cn';
 
 const NAV = [
-  { href: '/session', icon: Timer,        label: 'Session' },
-  { href: '/tasks',   icon: CheckSquare,  label: 'Tasks'   },
-  { href: '/stats',   icon: BarChart2,    label: 'Stats'   },
-  { href: '/notes',   icon: NotebookPen,  label: 'Notes'   },
+  { href: '/session',    icon: Timer,       label: 'Session'    },
+  { href: '/tasks',      icon: CheckSquare, label: 'Tasks'      },
+  { href: '/stats',      icon: BarChart2,   label: 'Stats'      },
+  { href: '/notes',      icon: NotebookPen, label: 'Notes'      },
+  { href: '/flashcards', icon: Layers,      label: 'Flashcards' },
 ];
 
 const COLLAPSED_KEY = 'sahurlock.sidebar.collapsed';

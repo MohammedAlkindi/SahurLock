@@ -3,6 +3,7 @@
 import type { RefObject } from 'react';
 import { useEffect, useRef } from 'react';
 import { AttentionReading } from '@/lib/types';
+import type { PhoneReading } from '@/lib/phone-detector';
 
 interface Props {
   videoRef: RefObject<HTMLVideoElement>;
@@ -18,6 +19,10 @@ interface Props {
   onZoomIn: () => void;
   onZoomOut: () => void;
   zoomLevel: number;
+  // Phone detection
+  phoneReading?: PhoneReading | null;
+  phoneCheckMs?: number;
+  phoneCheckThresholdMs?: number;
 }
 
 const ATTN_COLOR: Record<string, string> = {
@@ -44,7 +49,7 @@ function drawRoundRect(
   ctx.closePath();
 }
 
-function drawFrame(canvas: HTMLCanvasElement, vW: number, vH: number, attention: AttentionReading) {
+function drawFrame(canvas: HTMLCanvasElement, vW: number, vH: number, attention: AttentionReading, phoneReading?: PhoneReading | null) {
   canvas.width  = vW;
   canvas.height = vH;
   const ctx = canvas.getContext('2d');
@@ -60,6 +65,30 @@ function drawFrame(canvas: HTMLCanvasElement, vW: number, vH: number, attention:
     ctx.lineWidth = 2;
     drawRoundRect(ctx, x, y, width, height, 10);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  // Phone detection zone
+  if (phoneReading?.zone) {
+    const { x, y, width, height } = phoneReading.zone;
+    ctx.save();
+    if (phoneReading.detected) {
+      // Solid orange border + tinted fill when a hand is detected
+      ctx.strokeStyle = '#f97316cc';
+      ctx.lineWidth = 2;
+      drawRoundRect(ctx, x, y, width, height, 6);
+      ctx.stroke();
+      ctx.fillStyle = '#f9731622';
+      ctx.fill();
+    } else {
+      // Subtle dashed outline when monitoring but nothing detected
+      ctx.strokeStyle = '#78716c55';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      drawRoundRect(ctx, x, y, width, height, 6);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     ctx.restore();
   }
 
@@ -157,7 +186,10 @@ export function CameraPanel({
   countdownLeft,
   onZoomIn,
   onZoomOut,
-  zoomLevel
+  zoomLevel,
+  phoneReading,
+  phoneCheckMs = 0,
+  phoneCheckThresholdMs = 2500,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -169,8 +201,8 @@ export function CameraPanel({
       canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
-    drawFrame(canvas, video.videoWidth, video.videoHeight, attention);
-  }, [attention, videoRef]);
+    drawFrame(canvas, video.videoWidth, video.videoHeight, attention, phoneReading);
+  }, [attention, videoRef, phoneReading]);
 
   const leftOpen  = attention?.leftEye?.openRatio  ?? 0;
   const rightOpen = attention?.rightEye?.openRatio ?? 0;
@@ -260,6 +292,13 @@ export function CameraPanel({
           </div>
         )}
 
+        {/* ── Phone detection badge ─────────────────────────────────────── */}
+        {phoneReading?.detected && (
+          <div className="absolute right-2 top-2 rounded bg-orange-500/90 px-2 py-0.5 text-xs font-bold text-white">
+            PHONE?
+          </div>
+        )}
+
         {/* ── Countdown overlay ─────────────────────────────────────────── */}
         {countdownLeft > 0 && !calibrating && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/60 backdrop-blur-[2px]">
@@ -291,6 +330,24 @@ export function CameraPanel({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Phone detection progress bar */}
+      {!calibrating && countdownLeft === 0 && phoneReading !== undefined && phoneReading !== null && (
+        <div className="mt-3">
+          <div className="mb-1 flex justify-between text-xs text-zinc-600">
+            <span className={phoneReading.detected ? 'text-orange-500' : ''}>
+              {phoneReading.detected ? 'Hand detected' : 'Phone zone'}
+            </span>
+            <span>{Math.round(phoneReading.skinDensity * 100)}% skin</span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-800">
+            <div
+              className={`h-full rounded-full transition-all duration-150 ${phoneCheckMs > 0 ? 'bg-orange-500' : 'bg-zinc-600'}`}
+              style={{ width: `${Math.min(100, (phoneCheckMs / phoneCheckThresholdMs) * 100)}%` }}
+            />
+          </div>
         </div>
       )}
 
