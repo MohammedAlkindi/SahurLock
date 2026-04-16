@@ -17,9 +17,9 @@ interface Props {
 
 function StatRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-zinc-800/50 px-4 py-3">
-      <span className="text-sm text-zinc-400">{label}</span>
-      <span className={`text-sm font-semibold tabular-nums ${highlight ? 'text-green-400' : 'text-zinc-100'}`}>
+    <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`text-sm font-semibold tabular-nums ${highlight ? 'text-accent' : 'text-foreground'}`}>
         {value}
       </span>
     </div>
@@ -51,43 +51,43 @@ export function SessionSummary({ sessionId, stats, config, onReset }: Props) {
     'You need to lock in.';
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/80 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+    <div className="fixed inset-0 z-40 grid place-items-center bg-foreground/20 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
         {/* Header */}
-        <div className={`px-6 py-4 ${grade.bg} border-b border-zinc-800`}>
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Session Complete</p>
-          <p className="mt-1 text-sm text-zinc-300">{message}</p>
+        <div className={`px-6 py-4 ${grade.bg} border-b border-border`}>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Session Complete</p>
+          <p className="mt-1 text-sm text-foreground">{message}</p>
         </div>
 
         <div className="p-6">
           {/* Score */}
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <p className="mb-1 text-xs text-zinc-500">Focus Score</p>
+              <p className="mb-1 text-xs text-muted-foreground">Focus Score</p>
               <div className={`text-7xl font-black leading-none ${grade.color}`}>{score}</div>
             </div>
             <div className={`flex h-20 w-20 flex-col items-center justify-center rounded-2xl ring-2 ${grade.ring} ${grade.bg}`}>
               <span className={`text-4xl font-black ${grade.color}`}>{grade.label}</span>
-              <span className="mt-0.5 text-[10px] text-zinc-500">GRADE</span>
+              <span className="mt-0.5 text-[10px] text-muted-foreground">GRADE</span>
             </div>
           </div>
 
           {/* Focus bar */}
           <div className="mb-6">
-            <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
+            <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
               <span>Focus efficiency</span>
-              <span className="font-semibold text-zinc-300">{focusPct}%</span>
+              <span className="font-semibold text-foreground">{focusPct}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
-              <div className="h-full rounded-full bg-green-500" style={{ width: `${focusPct}%` }} />
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-accent" style={{ width: `${focusPct}%` }} />
             </div>
           </div>
 
           {/* Task */}
           {stats.taskTitle && (
-            <div className="mb-4 rounded-lg border border-zinc-800 bg-zinc-800/40 px-4 py-2.5 text-xs">
-              <span className="text-zinc-600">Working on </span>
-              <span className="font-medium text-zinc-300">{stats.taskTitle}</span>
+            <div className="mb-4 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-xs">
+              <span className="text-muted-foreground">Working on </span>
+              <span className="font-medium text-foreground">{stats.taskTitle}</span>
             </div>
           )}
 
@@ -106,11 +106,11 @@ export function SessionSummary({ sessionId, stats, config, onReset }: Props) {
           </div>
 
           {/* Score breakdown */}
-          <details className="mb-4 rounded-xl border border-zinc-800 bg-zinc-800/30">
-            <summary className="cursor-pointer select-none px-4 py-2.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+          <details className="mb-4 rounded-xl border border-border bg-muted/30">
+            <summary className="cursor-pointer select-none px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               Score breakdown ▸
             </summary>
-            <div className="border-t border-zinc-800 px-4 py-4">
+            <div className="border-t border-border px-4 py-4">
               <ScoreBreakdownPanel breakdown={breakdown} showHeader={false} />
             </div>
           </details>
@@ -121,18 +121,18 @@ export function SessionSummary({ sessionId, stats, config, onReset }: Props) {
             onChange={(e) => handleNotesChange(e.target.value)}
             placeholder="Session notes (optional)…"
             rows={2}
-            className="mb-4 w-full resize-none rounded-lg border border-zinc-800 bg-zinc-800/40 px-3 py-2.5 text-xs text-zinc-300 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
+            className="mb-4 w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-xs text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none"
           />
 
           <button
             onClick={onReset}
-            className="w-full rounded-xl bg-green-500 px-4 py-3 font-bold text-black transition hover:bg-green-400"
+            className="w-full rounded-xl bg-accent px-4 py-3 font-bold text-accent-foreground transition hover:bg-accent/90"
           >
             Start New Session
           </button>
           <Link
             href="/stats"
-            className="mt-2 block w-full rounded-xl border border-zinc-700 px-4 py-3 text-center text-sm font-semibold text-zinc-400 transition hover:border-zinc-600 hover:text-white"
+            className="mt-2 block w-full rounded-xl border border-border px-4 py-3 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground/20 hover:text-foreground"
           >
             View Stats
           </Link>

@@ -55,7 +55,7 @@ export function FocusRing({ remainingMs, totalMs, appState, offscreenMs = 0, thr
           cy={RADIUS + STROKE}
           r={RADIUS}
           fill="none"
-          stroke="#27272a"
+          stroke="var(--border)"
           strokeWidth={STROKE}
         />
 
@@ -97,7 +97,7 @@ export function FocusRing({ remainingMs, totalMs, appState, offscreenMs = 0, thr
           {formatTime(remainingMs)}
         </span>
         {label && (
-          <span className="mt-1.5 text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+          <span className="mt-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
             {label}
           </span>
         )}

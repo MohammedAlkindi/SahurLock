@@ -46,7 +46,7 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string;
 
 function ScoreBar({ score, label }: { score: number; label: string }) {
   const color     = score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-yellow-500' : 'bg-red-500';
-  const textColor = score >= 80 ? 'text-green-400' : score >= 60 ? 'text-yellow-400' : 'text-red-400';
+  const textColor = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-amber-600' : 'text-red-600';
   return (
     <div className="flex flex-col items-center gap-1" title={`${label}: ${score}`}>
       <span className={`text-[10px] font-bold tabular-nums ${textColor}`}>{score}</span>
@@ -95,8 +95,8 @@ function WeeklyReport({ history, tasks }: { history: SessionHistoryItem[]; tasks
 
   const TrendIcon = ({ delta }: { delta: number | null }) => {
     if (delta === null) return <Minus size={12} className="text-muted-foreground/40" />;
-    if (delta > 0)  return <TrendingUp  size={12} className="text-green-400" />;
-    if (delta < 0)  return <TrendingDown size={12} className="text-red-400" />;
+    if (delta > 0)  return <TrendingUp  size={12} className="text-green-600" />;
+    if (delta < 0)  return <TrendingDown size={12} className="text-red-600" />;
     return <Minus size={12} className="text-muted-foreground/40" />;
   };
 
@@ -126,7 +126,7 @@ function WeeklyReport({ history, tasks }: { history: SessionHistoryItem[]; tasks
         {/* Focus time */}
         <div className="rounded-xl bg-muted/30 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Focus time</p>
-          <p className="mt-1 text-2xl font-black tabular-nums text-green-400">{formatFocusTime(thisFocusMs)}</p>
+          <p className="mt-1 text-2xl font-black tabular-nums text-green-600">{formatFocusTime(thisFocusMs)}</p>
           {focusDelta !== null && (
             <p className={`mt-0.5 flex items-center gap-1 text-[10px] ${focusDelta >= 0 ? 'text-green-500/60' : 'text-red-500/60'}`}>
               <TrendIcon delta={focusDelta} />
@@ -322,13 +322,13 @@ export default function StatsPage() {
         <div className="flex items-center gap-2">
           {hasData && (
             confirming ? (
-              <div className="flex items-center gap-2 rounded-xl border border-red-800/60 bg-red-900/20 px-3 py-2">
-                <span className="text-xs text-red-300">Delete everything?</span>
+              <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+                <span className="text-xs text-red-700">Delete everything?</span>
                 <button onClick={handleClearAll} className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-500 transition">Yes, clear</button>
                 <button onClick={() => setConfirming(false)} className="text-xs text-muted-foreground hover:text-foreground transition">Cancel</button>
               </div>
             ) : (
-              <button onClick={() => setConfirming(true)} className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:border-red-800/60 hover:text-red-400 transition">
+              <button onClick={() => setConfirming(true)} className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:border-red-200 hover:text-red-600 transition">
                 Clear data
               </button>
             )
@@ -354,14 +354,14 @@ export default function StatsPage() {
           {/* Stat cards */}
           <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <StatCard label="Sessions"   value={String(agg.sessions)} />
-            <StatCard label="Focus time" value={formatFocusTime(agg.totalFocusedMs)} accent="text-green-400" />
+            <StatCard label="Focus time" value={formatFocusTime(agg.totalFocusedMs)} accent="text-green-600" />
             <StatCard label="Avg score"  value={String(avgScore)}  accent={getFocusGrade(avgScore).color} />
             <StatCard label="Best score" value={String(bestScore)} accent={getFocusGrade(bestScore).color} />
             <StatCard
               label="Streak"
               value={`${agg.currentStreak}d`}
               sub={`best ${agg.longestStreak}d`}
-              accent={agg.currentStreak > 0 ? 'text-orange-400' : 'text-muted-foreground'}
+              accent={agg.currentStreak > 0 ? 'text-orange-600' : 'text-muted-foreground'}
             />
             <StatCard
               label="Tasks done"
@@ -453,7 +453,7 @@ export default function StatsPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={item.stats.violationCount === 0 ? 'text-green-400' : 'text-foreground'}>
+                            <span className={item.stats.violationCount === 0 ? 'text-green-600' : 'text-foreground'}>
                               {item.stats.violationCount}
                             </span>
                           </td>
@@ -468,7 +468,7 @@ export default function StatsPage() {
                               />
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                                className="rounded p-1.5 text-muted-foreground/30 transition hover:bg-muted hover:text-red-400"
+                                className="rounded p-1.5 text-muted-foreground/30 transition hover:bg-muted hover:text-red-600"
                                 aria-label="Delete session"
                               >
                                 <Trash2 size={14} />

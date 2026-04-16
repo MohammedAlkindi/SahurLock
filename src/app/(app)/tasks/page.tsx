@@ -122,7 +122,7 @@ export default function TasksPage() {
                   </span>
                 )}
                 <span className="text-[10px] text-muted-foreground/50">{formatDate(task.createdAt)}</span>
-                <button onClick={() => removeTask(task.id)} className="text-muted-foreground/40 transition hover:text-red-400" aria-label="Delete">
+                <button onClick={() => removeTask(task.id)} className="text-muted-foreground/40 transition hover:text-red-600" aria-label="Delete">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -160,7 +160,7 @@ export default function TasksPage() {
                     <button onClick={() => restoreTask(task.id)} className="text-muted-foreground/40 transition hover:text-foreground" aria-label="Restore">
                       <RotateCcw size={13} />
                     </button>
-                    <button onClick={() => removeTask(task.id)} className="text-muted-foreground/40 transition hover:text-red-400" aria-label="Delete">
+                    <button onClick={() => removeTask(task.id)} className="text-muted-foreground/40 transition hover:text-red-600" aria-label="Delete">
                       <Trash2 size={13} />
                     </button>
                   </div>

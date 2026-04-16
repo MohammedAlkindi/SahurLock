@@ -90,12 +90,12 @@ export default function SoundsPage() {
             <p className="text-[11px] text-muted-foreground">{activeSound.category}</p>
           </div>
           {activeSound.headphones && (
-            <span className="hidden sm:flex items-center gap-1 text-[10px] text-amber-400">
+            <span className="hidden sm:flex items-center gap-1 text-[10px] text-amber-600">
               <Headphones size={11} /> headphones
             </span>
           )}
           <div className="flex items-center gap-2">
-            <VolumeX size={13} className="text-zinc-600 shrink-0" />
+            <VolumeX size={13} className="text-muted-foreground/50 shrink-0" />
             <input
               type="range"
               min={0}
@@ -103,13 +103,13 @@ export default function SoundsPage() {
               step={0.02}
               value={volume}
               onChange={(e) => handleVolume(Number(e.target.value))}
-              className="w-24 h-1 cursor-pointer accent-green-500"
+              className="w-24 h-1 cursor-pointer accent-accent"
             />
-            <Volume2 size={13} className="text-zinc-500 shrink-0" />
+            <Volume2 size={13} className="text-muted-foreground/50 shrink-0" />
           </div>
           <button
             onClick={stop}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-red-800 hover:text-red-400 transition"
+            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-red-300 hover:text-red-600 transition"
           >
             <Square size={10} className="fill-current" />
             Stop
@@ -130,13 +130,13 @@ export default function SoundsPage() {
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           {/* Search */}
           <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
             <input
               type="text"
               placeholder="Search sounds…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full sm:w-56 rounded-lg border border-zinc-700 bg-zinc-800/60 pl-8 pr-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/30"
+              className="w-full sm:w-56 rounded-lg border border-border bg-background pl-8 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -152,8 +152,8 @@ export default function SoundsPage() {
                 onClick={() => setCategory(cat)}
                 className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition ${
                   category === cat
-                    ? 'bg-green-600 text-white'
-                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
                 {cat}
@@ -164,7 +164,7 @@ export default function SoundsPage() {
 
         {/* ── Sound grid ─────────────────────────────────────────────────────── */}
         {filtered.length === 0 ? (
-          <p className="py-16 text-center text-sm text-zinc-600">No sounds match your search.</p>
+          <p className="py-16 text-center text-sm text-muted-foreground">No sounds match your search.</p>
         ) : (
           <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {filtered.map((sound) => {
@@ -175,19 +175,19 @@ export default function SoundsPage() {
                   onClick={() => toggle(sound.id)}
                   className={`relative flex flex-col items-start gap-1.5 rounded-xl border p-3.5 text-left transition-all ${
                     isActive
-                      ? 'border-green-600 bg-green-600/10 ring-1 ring-green-600/30'
-                      : 'border-zinc-800 bg-zinc-900/60 hover:border-zinc-600 hover:bg-zinc-800/50'
+                      ? 'border-accent/40 bg-accent/10'
+                      : 'border-border bg-card hover:border-foreground/20 hover:bg-muted/40'
                   }`}
                 >
                   <span className="text-xl leading-none">{sound.emoji}</span>
-                  <span className={`text-xs font-semibold leading-tight ${isActive ? 'text-green-300' : 'text-zinc-200'}`}>
+                  <span className={`text-xs font-semibold leading-tight ${isActive ? 'text-accent' : 'text-foreground'}`}>
                     {sound.label}
                   </span>
                   {sound.headphones && (
                     <Headphones size={9} className="text-amber-500 shrink-0" />
                   )}
                   {isActive && (
-                    <span className="absolute top-2 right-2 flex h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_4px_1px_#22c55e]" />
+                    <span className="absolute top-2 right-2 flex h-1.5 w-1.5 rounded-full bg-accent" />
                   )}
                 </button>
               );

@@ -46,7 +46,7 @@ function TrackArt({ images, size = 40 }: { images: { url: string }[]; size?: num
   if (!src) {
     return (
       <div
-        className="rounded bg-zinc-800 flex items-center justify-center text-zinc-600"
+        className="rounded bg-muted flex items-center justify-center text-muted-foreground/40"
         style={{ width: size, height: size }}
       >
         <Icon d={ICONS.music} size={size * 0.5} />
@@ -75,7 +75,7 @@ function ControlBtn({
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="rounded p-1.5 text-zinc-400 transition hover:bg-zinc-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+      className="rounded p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Icon d={iconD} size={size} />
     </button>
@@ -87,9 +87,9 @@ function ControlBtn({
 function ProgressBar({ progressMs, durationMs }: { progressMs: number; durationMs: number }) {
   const pct = durationMs > 0 ? Math.min(100, (progressMs / durationMs) * 100) : 0;
   return (
-    <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-700">
+    <div className="h-1 w-full overflow-hidden rounded-full bg-border">
       <div
-        className="h-full rounded-full bg-green-500 transition-all duration-1000"
+        className="h-full rounded-full bg-accent transition-all duration-1000"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -106,7 +106,7 @@ function VolumeSlider({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 text-muted-foreground">
       <Icon d={ICONS.volume} size={14} />
       <input
         type="range"
@@ -114,7 +114,7 @@ function VolumeSlider({
         max={100}
         value={volume}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1 w-20 cursor-pointer accent-green-500"
+        className="h-1 w-20 cursor-pointer accent-accent"
         aria-label="Volume"
       />
     </div>
@@ -138,7 +138,7 @@ function SearchDropdown({
 }) {
   if (isSearching) {
     return (
-      <div className="mt-2 rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-xs text-zinc-500">
+      <div className="mt-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
         Searching…
       </div>
     );
@@ -151,18 +151,18 @@ function SearchDropdown({
 
   if (tracks.length === 0 && playlists.length === 0) {
     return (
-      <div className="mt-2 rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-xs text-zinc-500">
+      <div className="mt-2 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
         No results found.
       </div>
     );
   }
 
   return (
-    <div className="mt-2 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl">
+    <div className="mt-2 rounded-lg border border-border bg-card shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">Results</span>
-        <button onClick={onClose} className="text-zinc-600 hover:text-zinc-400 transition">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Results</span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition">
           <Icon d={ICONS.close} size={14} />
         </button>
       </div>
@@ -171,23 +171,23 @@ function SearchDropdown({
         {/* Tracks */}
         {tracks.length > 0 && (
           <div>
-            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Tracks
             </p>
             {tracks.map((track) => (
               <button
                 key={track.id}
                 onClick={() => onPlayTrack(track)}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-zinc-800"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-muted"
               >
                 <TrackArt images={track.album.images} size={32} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-zinc-200">{track.name}</p>
-                  <p className="truncate text-[10px] text-zinc-500">
+                  <p className="truncate text-xs font-medium text-foreground">{track.name}</p>
+                  <p className="truncate text-[10px] text-muted-foreground">
                     {track.artists.map((a) => a.name).join(', ')}
                   </p>
                 </div>
-                <Icon d={ICONS.play} size={14} />
+                <span className="text-muted-foreground/60"><Icon d={ICONS.play} size={14} /></span>
               </button>
             ))}
           </div>
@@ -196,23 +196,23 @@ function SearchDropdown({
         {/* Playlists */}
         {playlists.length > 0 && (
           <div>
-            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+            <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Playlists
             </p>
             {playlists.map((pl) => (
               <button
                 key={pl.id}
                 onClick={() => onPlayPlaylist(pl)}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-zinc-800"
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition hover:bg-muted"
               >
                 <TrackArt images={pl.images} size={32} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-zinc-200">{pl.name}</p>
-                  <p className="truncate text-[10px] text-zinc-500">
+                  <p className="truncate text-xs font-medium text-foreground">{pl.name}</p>
+                  <p className="truncate text-[10px] text-muted-foreground">
                     {pl.tracks.total} tracks · {pl.owner.display_name}
                   </p>
                 </div>
-                <Icon d={ICONS.play} size={14} />
+                <span className="text-muted-foreground/60"><Icon d={ICONS.play} size={14} /></span>
               </button>
             ))}
           </div>
@@ -269,24 +269,24 @@ export function SpotifyPanel({ compact = false }: Props) {
     return (
       <div
         id="spotify-panel"
-        className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 shadow-xl"
+        className="rounded-2xl border border-border bg-card p-4"
       >
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[#1DB954]"><SpotifyLogo size={16} /></span>
-          <span className="text-xs font-semibold text-zinc-300">Spotify</span>
-          <span className="ml-auto text-[10px] text-zinc-600">Optional</span>
+          <span className="text-xs font-semibold text-foreground">Spotify</span>
+          <span className="ml-auto text-[10px] text-muted-foreground">Optional</span>
         </div>
 
         {error && (
-          <div className="mb-3 flex items-start gap-2 rounded-lg bg-red-900/30 border border-red-800/40 px-3 py-2 text-xs text-red-300">
+          <div className="mb-3 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
             <span className="flex-1">{error}</span>
-            <button onClick={clearError} className="shrink-0 text-red-400 hover:text-red-200 transition">
+            <button onClick={clearError} className="shrink-0 text-red-500 hover:text-red-700 transition">
               <Icon d={ICONS.close} size={12} />
             </button>
           </div>
         )}
 
-        <p className="mb-3 text-xs text-zinc-500 leading-relaxed">
+        <p className="mb-3 text-xs text-muted-foreground leading-relaxed">
           Connect your Spotify account to play music during focus sessions.
           Requires Spotify Premium.
         </p>
@@ -307,34 +307,34 @@ export function SpotifyPanel({ compact = false }: Props) {
     return (
       <div
         id="spotify-panel"
-        className="rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-xl overflow-hidden"
+        className="rounded-2xl border border-border bg-card overflow-hidden"
       >
         <button
           onClick={() => setCollapsed(false)}
-          className="flex w-full items-center gap-3 px-4 py-3 transition hover:bg-zinc-800/40"
+          className="flex w-full items-center gap-3 px-4 py-3 transition hover:bg-muted"
         >
           <span className="text-[#1DB954]"><SpotifyLogo size={14} /></span>
           {track ? (
             <>
               <TrackArt images={track.album.images} size={28} />
               <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-xs font-medium text-zinc-200">{track.name}</p>
-                <p className="truncate text-[10px] text-zinc-500">
+                <p className="truncate text-xs font-medium text-foreground">{track.name}</p>
+                <p className="truncate text-[10px] text-muted-foreground">
                   {track.artists.map((a) => a.name).join(', ')}
                 </p>
               </div>
             </>
           ) : (
-            <span className="flex-1 text-left text-xs text-zinc-500">
+            <span className="flex-1 text-left text-xs text-muted-foreground">
               {playerReady ? 'No track playing' : 'Spotify connected'}
             </span>
           )}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 text-muted-foreground">
             {playbackState && (
               <button
                 aria-label={playbackState.is_playing ? 'Pause' : 'Play'}
                 onClick={(e) => { e.stopPropagation(); playbackState.is_playing ? pause() : play(); }}
-                className="rounded p-1 text-zinc-400 hover:text-white transition"
+                className="rounded p-1 hover:text-foreground transition"
               >
                 <Icon d={playbackState.is_playing ? ICONS.pause : ICONS.play} size={14} />
               </button>
@@ -358,27 +358,27 @@ export function SpotifyPanel({ compact = false }: Props) {
   return (
     <div
       id="spotify-panel"
-      className="rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-xl"
+      className="rounded-2xl border border-border bg-card"
     >
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <span className="text-[#1DB954]"><SpotifyLogo size={15} /></span>
-        <span className="text-xs font-semibold text-zinc-300">Spotify</span>
+        <span className="text-xs font-semibold text-foreground">Spotify</span>
 
         {profile && (
-          <span className="ml-1 truncate text-xs text-zinc-500">{profile.display_name}</span>
+          <span className="ml-1 truncate text-xs text-muted-foreground">{profile.display_name}</span>
         )}
 
         {/* Device status dot */}
         <span
           title={playerReady ? 'Browser player ready' : 'Player not ready'}
-          className={`ml-auto h-1.5 w-1.5 rounded-full ${playerReady ? 'bg-green-500' : 'bg-zinc-600'}`}
+          className={`ml-auto h-1.5 w-1.5 rounded-full ${playerReady ? 'bg-accent' : 'bg-border'}`}
         />
 
         {compact && (
           <button
             onClick={() => setCollapsed(true)}
-            className="ml-2 text-zinc-600 hover:text-zinc-400 transition"
+            className="ml-2 text-muted-foreground hover:text-foreground transition"
             aria-label="Collapse"
           >
             <Icon d={ICONS.chevUp} size={14} />
@@ -387,7 +387,7 @@ export function SpotifyPanel({ compact = false }: Props) {
 
         <button
           onClick={logout}
-          className={`${compact ? '' : 'ml-2'} text-zinc-600 hover:text-zinc-400 transition`}
+          className={`${compact ? '' : 'ml-2'} text-muted-foreground hover:text-foreground transition`}
           aria-label="Disconnect Spotify"
           title="Disconnect"
         >
@@ -398,9 +398,9 @@ export function SpotifyPanel({ compact = false }: Props) {
       <div className="p-4 space-y-4">
         {/* Error banner */}
         {error && (
-          <div className="flex items-start gap-2 rounded-lg bg-red-900/30 border border-red-800/40 px-3 py-2 text-xs text-red-300">
+          <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
             <span className="flex-1">{error}</span>
-            <button onClick={clearError} className="shrink-0 text-red-400 hover:text-red-200 transition">
+            <button onClick={clearError} className="shrink-0 text-red-500 hover:text-red-700 transition">
               <Icon d={ICONS.close} size={12} />
             </button>
           </div>
@@ -408,13 +408,13 @@ export function SpotifyPanel({ compact = false }: Props) {
 
         {/* Transfer to browser player */}
         {connected && !playerReady && (
-          <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 px-3 py-2.5">
-            <p className="mb-2 text-xs text-zinc-400">
+          <div className="rounded-lg border border-border bg-muted/50 px-3 py-2.5">
+            <p className="mb-2 text-xs text-muted-foreground">
               Initializing browser player…
             </p>
             <button
               onClick={transferToPlayer}
-              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
             >
               <Icon d={ICONS.transfer} size={12} />
               Transfer playback here
@@ -428,11 +428,11 @@ export function SpotifyPanel({ compact = false }: Props) {
             <div className="flex items-center gap-3">
               <TrackArt images={track.album.images} size={48} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-zinc-100">{track.name}</p>
-                <p className="truncate text-xs text-zinc-500">
+                <p className="truncate text-sm font-semibold text-foreground">{track.name}</p>
+                <p className="truncate text-xs text-muted-foreground">
                   {track.artists.map((a) => a.name).join(', ')}
                 </p>
-                <p className="truncate text-[10px] text-zinc-600">{track.album.name}</p>
+                <p className="truncate text-[10px] text-muted-foreground/60">{track.album.name}</p>
               </div>
             </div>
 
@@ -469,9 +469,9 @@ export function SpotifyPanel({ compact = false }: Props) {
           </div>
         ) : (
           playerReady && (
-            <div className="flex flex-col items-center gap-2 py-2 text-center">
+            <div className="flex flex-col items-center gap-2 py-2 text-center text-muted-foreground/40">
               <Icon d={ICONS.music} size={24} />
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-muted-foreground">
                 Search for a track or playlist to start playing.
               </p>
             </div>
@@ -481,20 +481,20 @@ export function SpotifyPanel({ compact = false }: Props) {
         {/* Search */}
         {connected && (
           <div className="relative">
-            <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2 focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500/30 transition">
-              <Icon d={ICONS.search} size={14} />
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 focus-within:border-accent focus-within:ring-1 focus-within:ring-ring transition">
+              <span className="text-muted-foreground/60"><Icon d={ICONS.search} size={14} /></span>
               <input
                 ref={searchRef}
                 type="text"
                 placeholder="Search tracks or playlists…"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="flex-1 bg-transparent text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none"
+                className="flex-1 bg-transparent text-xs text-foreground placeholder-muted-foreground focus:outline-none"
               />
               {searchQuery && (
                 <button
                   onClick={() => { setSearchQuery(''); clearSearch(); }}
-                  className="text-zinc-600 hover:text-zinc-400 transition"
+                  className="text-muted-foreground hover:text-foreground transition"
                 >
                   <Icon d={ICONS.close} size={12} />
                 </button>

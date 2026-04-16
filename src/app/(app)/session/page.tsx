@@ -69,8 +69,8 @@ const COUNTDOWN_MS           = 3000;
 function LiveStat({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
   return (
     <div className="flex flex-col">
-      <span className="text-xs text-zinc-500">{label}</span>
-      <span className={`text-xl font-bold tabular-nums ${accent ?? 'text-white'}`}>{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={`text-xl font-bold tabular-nums ${accent ?? 'text-foreground'}`}>{value}</span>
     </div>
   );
 }
@@ -621,7 +621,7 @@ export default function SessionPage() {
             </p>
           )}
           {isActive && config.pomodoroEnabled && config.breakLimit > 0 && !['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
-            <p className="mt-0.5 text-xs text-zinc-600">Round {pomodoroRound} of {pomodoroTotalRounds}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground/60">Round {pomodoroRound} of {pomodoroTotalRounds}</p>
           )}
         </div>
 
@@ -678,8 +678,8 @@ export default function SessionPage() {
               onTaskChange={setSelectedTaskId}
             />
             {appState === 'camera_error' && (
-              <div className="mt-3 rounded-xl border border-red-800/60 bg-red-900/20 px-4 py-3">
-                <p className="text-sm text-red-300">{cameraError}</p>
+              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="text-sm text-red-700">{cameraError}</p>
                 <div className="mt-3 flex gap-2">
                   {streamActive ? (
                     <button onClick={retryCalibration} className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/70 transition">
@@ -722,7 +722,7 @@ export default function SessionPage() {
           {/* Left: timer + stats + breaks + spotify */}
           <div className="flex flex-col gap-5 lg:col-span-2">
             {/* Timer */}
-            <div className="flex flex-col items-center rounded-2xl border border-border bg-card py-8 shadow-xl">
+            <div className="flex flex-col items-center rounded-2xl border border-border bg-card py-8">
               <FocusRing
                 remainingMs={remainingMs}
                 totalMs={totalMs}
@@ -734,36 +734,36 @@ export default function SessionPage() {
 
             {/* Live stats */}
             {!['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
+              <div className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Live</h3>
                 <div className="grid grid-cols-2 gap-y-5 gap-x-4">
                   <LiveStat
                     label="Focus"
                     value={`${liveFocusPct}%`}
-                    accent={liveFocusPct >= 80 ? 'text-green-400' : liveFocusPct >= 60 ? 'text-yellow-400' : 'text-red-400'}
+                    accent={liveFocusPct >= 80 ? 'text-green-600' : liveFocusPct >= 60 ? 'text-amber-600' : 'text-red-600'}
                   />
                   <LiveStat
                     label="Score"
                     value={liveScore}
-                    accent={liveScore >= 80 ? 'text-green-400' : liveScore >= 60 ? 'text-yellow-400' : 'text-red-400'}
+                    accent={liveScore >= 80 ? 'text-green-600' : liveScore >= 60 ? 'text-amber-600' : 'text-red-600'}
                   />
                   <LiveStat
                     label="Violations"
                     value={violationCount}
-                    accent={violationCount === 0 ? 'text-green-400' : 'text-red-400'}
+                    accent={violationCount === 0 ? 'text-green-600' : 'text-red-600'}
                   />
                   {config.phoneDetectionEnabled && (
                     <LiveStat
                       label="Phone checks"
                       value={phoneCheckCount}
-                      accent={phoneCheckCount === 0 ? 'text-green-400' : 'text-orange-400'}
+                      accent={phoneCheckCount === 0 ? 'text-green-600' : 'text-orange-600'}
                     />
                   )}
                 </div>
 
                 {/* Off-screen meter */}
                 <div className="mt-5">
-                  <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
+                  <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
                     <span>Off-screen</span>
                     <span>{(offscreenMs / 1000).toFixed(1)}s / {config.offscreenThresholdSec}s</span>
                   </div>
@@ -776,23 +776,23 @@ export default function SessionPage() {
                 </div>
 
                 {attention && (
-                  <p className="mt-3 text-xs text-zinc-600">
-                    Confidence: <span className="text-zinc-400">{Math.round(attention.confidence * 100)}%</span>
+                  <p className="mt-3 text-xs text-muted-foreground/70">
+                    Confidence: <span className="text-muted-foreground">{Math.round(attention.confidence * 100)}%</span>
                     {' · '}
-                    <span className={derivedState === 'focused' ? 'text-green-400' : derivedState === 'warning' ? 'text-yellow-400' : 'text-red-400'}>
+                    <span className={derivedState === 'focused' ? 'text-green-600' : derivedState === 'warning' ? 'text-amber-600' : 'text-red-600'}>
                       {derivedState}
                     </span>
                   </p>
                 )}
                 {attention?.guidance?.length ? (
-                  <ul className="mt-2 space-y-0.5 text-xs text-amber-400">
+                  <ul className="mt-2 space-y-0.5 text-xs text-amber-600">
                     {attention.guidance.slice(0, 2).map((h) => (
-                      <li key={h} className="flex gap-1.5"><span className="text-amber-600">!</span><span>{h}</span></li>
+                      <li key={h} className="flex gap-1.5"><span className="text-amber-500">!</span><span>{h}</span></li>
                     ))}
                   </ul>
                 ) : null}
 
-                <div className="mt-3 flex gap-3 text-[10px] text-zinc-700">
+                <div className="mt-3 flex gap-3 text-[10px] text-muted-foreground/50">
                   <span><kbd className="rounded bg-muted px-1 py-0.5">B</kbd> break</span>
                   <span><kbd className="rounded bg-muted px-1 py-0.5">E</kbd> end</span>
                   <span><kbd className="rounded bg-muted px-1 py-0.5">H</kbd> camera</span>
@@ -802,8 +802,8 @@ export default function SessionPage() {
 
             {/* Breaks */}
             {['focused', 'warning', 'break'].includes(appState) && config.breakLimit > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   Breaks {config.pomodoroEnabled && <span className="text-muted-foreground/50 normal-case font-normal">· auto</span>}
                 </h3>
                 <BreakControls
@@ -825,7 +825,7 @@ export default function SessionPage() {
           {/* Right: camera */}
           <div className="lg:col-span-3">
             {cameraHidden ? (
-              <div className="flex h-full min-h-[300px] items-center justify-center rounded-2xl border border-border bg-card/40">
+              <div className="flex h-full min-h-[300px] items-center justify-center rounded-2xl border border-border bg-muted/30">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Camera hidden</p>
                   <button

@@ -25,10 +25,10 @@ export function ScoreBreakdownPanel({ breakdown, showHeader = true }: Props) {
     <div className="space-y-0">
       {showHeader && (
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Score breakdown
           </span>
-          <span className="text-xs text-zinc-600">out of 100</span>
+          <span className="text-xs text-muted-foreground/60">out of 100</span>
         </div>
       )}
 
@@ -39,13 +39,13 @@ export function ScoreBreakdownPanel({ breakdown, showHeader = true }: Props) {
           return (
             <div key={key}>
               <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="text-zinc-500">{label}</span>
-                <span className="tabular-nums text-zinc-400">
+                <span className="text-muted-foreground">{label}</span>
+                <span className="tabular-nums text-foreground/70">
                   {value}
-                  <span className="text-zinc-700">/{max}</span>
+                  <span className="text-muted-foreground/40">/{max}</span>
                 </span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${bar}`}
                   style={{ width: `${pct}%` }}
@@ -56,9 +56,9 @@ export function ScoreBreakdownPanel({ breakdown, showHeader = true }: Props) {
         })}
       </div>
 
-      <div className="mt-3 border-t border-zinc-800 pt-2.5 flex items-center justify-between text-xs">
-        <span className="text-zinc-600">Total</span>
-        <span className="font-bold tabular-nums text-zinc-200">{breakdown.total} / 100</span>
+      <div className="mt-3 border-t border-border pt-2.5 flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Total</span>
+        <span className="font-bold tabular-nums text-foreground">{breakdown.total} / 100</span>
       </div>
     </div>
   );

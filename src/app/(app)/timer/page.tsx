@@ -80,7 +80,7 @@ function Stopwatch() {
       <div className="flex items-center gap-3">
         <button
           onClick={reset}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-zinc-600 hover:text-foreground"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-foreground/20 hover:text-foreground"
         >
           <RotateCcw size={16} />
         </button>
@@ -98,7 +98,7 @@ function Stopwatch() {
         <button
           onClick={lap}
           disabled={!running && elapsed === 0}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-zinc-600 hover:text-foreground disabled:opacity-30"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-foreground/20 hover:text-foreground disabled:opacity-30"
         >
           <Flag size={16} />
         </button>
@@ -214,7 +214,7 @@ function Countdown() {
       {hasStarted && (
         <div className={cn(
           'mb-8 font-mono text-7xl font-black tabular-nums tracking-tight',
-          finished ? 'text-green-400' : 'text-foreground'
+          finished ? 'text-green-600' : 'text-foreground'
         )}>
           {finished ? 'Done' : formatCountdown(displayMs)}
         </div>
@@ -235,7 +235,7 @@ function Countdown() {
         <button
           onClick={reset}
           disabled={!hasStarted}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-zinc-600 hover:text-foreground disabled:opacity-30"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition hover:border-foreground/20 hover:text-foreground disabled:opacity-30"
         >
           <RotateCcw size={16} />
         </button>

@@ -172,7 +172,7 @@ function drawFrame(canvas: HTMLCanvasElement, vW: number, vH: number, attention:
 
 function StatusDot({ ok }: { ok: boolean }) {
   return (
-    <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full transition-colors duration-300 ${ok ? 'bg-green-500' : 'bg-zinc-700'}`} />
+    <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full transition-colors duration-300 ${ok ? 'bg-accent' : 'bg-border'}`} />
   );
 }
 
@@ -215,18 +215,18 @@ export function CameraPanel({
   const calibPct         = Math.min(100, (calibrationGoodSamples / calibrationNeeded) * 100);
 
   return (
-    <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+    <section className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-zinc-200">Live Feed</h3>
+        <h3 className="text-sm font-semibold text-foreground">Live Feed</h3>
         {!calibrating && (attention?.leftEye || attention?.rightEye) && (
-          <span className="font-mono text-xs text-zinc-600">
+          <span className="font-mono text-xs text-muted-foreground/60">
             EAR {leftOpen.toFixed(2)} / {rightOpen.toFixed(2)}
           </span>
         )}
       </div>
 
-      {/* Video + canvas overlay stack */}
-      <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-black">
+      {/* Video + canvas overlay stack — intentionally dark media surface */}
+      <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-[#1A1A1A]">
         <video
           ref={videoRef}
           autoPlay
@@ -244,7 +244,7 @@ export function CameraPanel({
 
         {/* ── Calibration progress panel (bottom docked, semi-transparent) ── */}
         {calibrating && (
-          <div className="absolute inset-x-0 bottom-0 bg-zinc-950/90 px-4 py-3 backdrop-blur-sm">
+          <div className="absolute inset-x-0 bottom-0 bg-[#111111]/90 px-4 py-3 backdrop-blur-sm">
             {/* Stall / lighting warning */}
             {(calibrationStalled || guidance) && (
               <p className="mb-2 text-xs text-amber-400">
@@ -280,11 +280,11 @@ export function CameraPanel({
               <div className="ml-auto flex items-center gap-2">
                 <div className="h-1 w-20 overflow-hidden rounded-full bg-zinc-800">
                   <div
-                    className="h-full rounded-full bg-green-500 transition-all duration-300"
+                    className="h-full rounded-full bg-accent transition-all duration-300"
                     style={{ width: `${calibPct}%` }}
                   />
                 </div>
-                <span className="font-mono text-xs tabular-nums text-zinc-600">
+                <span className="font-mono text-xs tabular-nums text-zinc-500">
                   {calibrationGoodSamples}/{calibrationNeeded}
                 </span>
               </div>
@@ -301,7 +301,7 @@ export function CameraPanel({
 
         {/* ── Countdown overlay ─────────────────────────────────────────── */}
         {countdownLeft > 0 && !calibrating && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/60 backdrop-blur-[2px]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1A1A1A]/60 backdrop-blur-[2px]">
             <span className="text-7xl font-black tabular-nums text-white leading-none">
               {countdownLeft}
             </span>
@@ -314,14 +314,14 @@ export function CameraPanel({
 
       {/* Eye openness bars — only during active session */}
       {!calibrating && countdownLeft === 0 && (attention?.leftEye || attention?.rightEye) && (
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-600">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground/60">
           {(['Left', 'Right'] as const).map((side) => {
             const ratio = side === 'Left' ? leftOpen : rightOpen;
             const pct   = Math.min(100, Math.round(ratio * 600));
             return (
               <div key={side}>
                 <div className="mb-1">{side}</div>
-                <div className="h-1 w-full rounded-full bg-zinc-800">
+                <div className="h-1 w-full rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-cyan-500/70 transition-all duration-100"
                     style={{ width: `${pct}%` }}
@@ -336,15 +336,15 @@ export function CameraPanel({
       {/* Phone detection progress bar */}
       {!calibrating && countdownLeft === 0 && phoneReading !== undefined && phoneReading !== null && (
         <div className="mt-3">
-          <div className="mb-1 flex justify-between text-xs text-zinc-600">
+          <div className="mb-1 flex justify-between text-xs text-muted-foreground/60">
             <span className={phoneReading.detected ? 'text-orange-500' : ''}>
               {phoneReading.detected ? 'Hand detected' : 'Phone zone'}
             </span>
             <span>{Math.round(phoneReading.skinDensity * 100)}% skin</span>
           </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-800">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className={`h-full rounded-full transition-all duration-150 ${phoneCheckMs > 0 ? 'bg-orange-500' : 'bg-zinc-600'}`}
+              className={`h-full rounded-full transition-all duration-150 ${phoneCheckMs > 0 ? 'bg-orange-500' : 'bg-border'}`}
               style={{ width: `${Math.min(100, (phoneCheckMs / phoneCheckThresholdMs) * 100)}%` }}
             />
           </div>
@@ -355,25 +355,25 @@ export function CameraPanel({
       <div className="mt-3 flex items-center gap-2">
         <button
           onClick={onZoomOut}
-          className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 transition"
+          className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:border-foreground/20 hover:text-foreground transition"
         >
           −
         </button>
         <button
           onClick={onZoomIn}
-          className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 transition"
+          className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:border-foreground/20 hover:text-foreground transition"
         >
           +
         </button>
-        <span className="text-xs text-zinc-700">{zoomLevel.toFixed(1)}×</span>
+        <span className="text-xs text-muted-foreground/50">{zoomLevel.toFixed(1)}×</span>
       </div>
 
       {/* Active session guidance hints */}
       {!calibrating && attention?.guidance?.length ? (
-        <ul className="mt-3 space-y-0.5 text-xs text-amber-400/80">
+        <ul className="mt-3 space-y-0.5 text-xs text-amber-600">
           {attention.guidance.slice(0, 2).map((hint) => (
             <li key={hint} className="flex gap-1.5">
-              <span className="text-amber-600">!</span>
+              <span className="text-amber-500">!</span>
               <span>{hint}</span>
             </li>
           ))}

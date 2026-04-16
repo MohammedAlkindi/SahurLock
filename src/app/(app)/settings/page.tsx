@@ -30,7 +30,7 @@ function PillToggle({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-        checked ? 'bg-green-500' : 'bg-zinc-700'
+        checked ? 'bg-accent' : 'bg-border'
       }`}
     >
       <span
@@ -54,8 +54,8 @@ function SettingRow({
   return (
     <div className="flex items-center justify-between gap-4 py-3.5">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-zinc-200">{label}</p>
-        {description && <p className="mt-0.5 text-xs text-zinc-500">{description}</p>}
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -64,7 +64,7 @@ function SettingRow({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <p className="pb-1 pt-6 text-[11px] font-semibold uppercase tracking-widest text-zinc-600 first:pt-0">
+    <p className="pb-1 pt-6 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 first:pt-0">
       {title}
     </p>
   );
@@ -91,17 +91,17 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-xl px-4 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-black tracking-tight">Settings</h1>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Global defaults applied to every new session.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-5">
+      <div className="rounded-2xl border border-border bg-card px-5">
 
         {/* ── Focus ─────────────────────────────────────── */}
         <SectionHeader title="Focus" />
 
-        <div className="divide-y divide-zinc-800/60">
+        <div className="divide-y divide-border/60">
           <SettingRow
             label="Pomodoro auto-cycle"
             description="Breaks fire automatically at the end of each interval."
@@ -116,7 +116,7 @@ export default function SettingsPage() {
         {/* ── Enforcement ───────────────────────────────── */}
         <SectionHeader title="Enforcement" />
 
-        <div className="divide-y divide-zinc-800/60">
+        <div className="divide-y divide-border/60">
           <SettingRow
             label="Punishment clip"
             description="Plays a short clip whenever you trigger a violation."
@@ -129,11 +129,11 @@ export default function SettingsPage() {
 
           {config.punishmentEnabled && (
             <div className="py-3.5">
-              <p className="mb-2 text-xs font-medium text-zinc-400">Default clip</p>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Default clip</p>
               <select
                 value={config.punishmentMedia}
                 onChange={(e) => update({ punishmentMedia: e.target.value })}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2 text-sm text-white focus:border-green-500 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
               >
                 {PUNISHMENT_CLIPS.map((clip) => (
                   <option key={clip.value} value={clip.value}>
@@ -148,7 +148,7 @@ export default function SettingsPage() {
         {/* ── Detection ─────────────────────────────────── */}
         <SectionHeader title="Detection" />
 
-        <div className="divide-y divide-zinc-800/60 pb-2">
+        <div className="divide-y divide-border/60 pb-2">
           <SettingRow
             label="Phone detection"
             description="Uses the webcam to flag hand-to-face posture as a violation."
@@ -162,7 +162,7 @@ export default function SettingsPage() {
 
       </div>
 
-      <p className="mt-4 text-center text-[11px] text-zinc-700">
+      <p className="mt-4 text-center text-[11px] text-muted-foreground/50">
         Changes save instantly — no button needed.
       </p>
     </div>

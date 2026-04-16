@@ -16,9 +16,9 @@ type Phase = 'front' | 'back';
 
 const DIFFICULTY_LABEL: Record<number, string> = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
 const DIFFICULTY_COLOR: Record<number, string> = {
-  1: 'text-green-400 bg-green-500/10',
-  2: 'text-yellow-400 bg-yellow-500/10',
-  3: 'text-red-400 bg-red-500/10',
+  1: 'text-green-700 bg-green-500/10',
+  2: 'text-amber-700 bg-amber-500/10',
+  3: 'text-red-700 bg-red-500/10',
 };
 
 export function FlashcardOverlay({ cards, focusScore, onComplete, onDismiss }: Props) {
@@ -49,26 +49,26 @@ export function FlashcardOverlay({ cards, focusScore, onComplete, onDismiss }: P
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/20 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <div className="flex items-center gap-2.5">
-            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Break Review
             </span>
-            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-500">
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
               {idx + 1} / {total}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-600">
+            <span className="text-[10px] text-muted-foreground/60">
               Score {focusScore}
             </span>
             <button
               onClick={onDismiss}
-              className="rounded p-1 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+              className="rounded p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
               aria-label="Skip all cards"
             >
               <X size={15} />
@@ -77,9 +77,9 @@ export function FlashcardOverlay({ cards, focusScore, onComplete, onDismiss }: P
         </div>
 
         {/* Progress bar */}
-        <div className="h-0.5 bg-zinc-800">
+        <div className="h-0.5 bg-border">
           <div
-            className="h-full bg-green-500 transition-all duration-300"
+            className="h-full bg-accent transition-all duration-300"
             style={{ width: `${((idx + (phase === 'back' ? 0.5 : 0)) / total) * 100}%` }}
           />
         </div>
@@ -92,27 +92,27 @@ export function FlashcardOverlay({ cards, focusScore, onComplete, onDismiss }: P
               {DIFFICULTY_LABEL[card.difficulty]}
             </span>
             {card.reviewCount > 0 && (
-              <span className="text-[10px] text-zinc-600">
+              <span className="text-[10px] text-muted-foreground/60">
                 {card.correctCount}/{card.reviewCount} correct
               </span>
             )}
           </div>
 
           {/* Front */}
-          <p className="min-h-[60px] text-base font-medium leading-relaxed text-zinc-100">
+          <p className="min-h-[60px] text-base font-medium leading-relaxed text-foreground">
             {card.front}
           </p>
 
           {/* Back — revealed or hidden */}
           {phase === 'back' ? (
-            <div className="mt-5 rounded-xl border border-zinc-700 bg-zinc-800/50 p-4">
-              <p className="text-sm leading-relaxed text-zinc-300">{card.back}</p>
+            <div className="mt-5 rounded-xl border border-border bg-muted/40 p-4">
+              <p className="text-sm leading-relaxed text-foreground">{card.back}</p>
             </div>
           ) : (
             <div className="mt-5">
               <button
                 onClick={handleReveal}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-800/40 py-3 text-sm font-medium text-zinc-400 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                className="w-full rounded-xl border border-border bg-muted/30 py-3 text-sm font-medium text-muted-foreground transition hover:border-foreground/20 hover:bg-muted hover:text-foreground"
               >
                 Reveal answer
               </button>
@@ -122,24 +122,24 @@ export function FlashcardOverlay({ cards, focusScore, onComplete, onDismiss }: P
 
         {/* Grading buttons — only after reveal */}
         {phase === 'back' && (
-          <div className="grid grid-cols-3 gap-2 border-t border-zinc-800 px-5 py-4">
+          <div className="grid grid-cols-3 gap-2 border-t border-border px-5 py-4">
             <button
               onClick={() => handleGrade(1)}
-              className="flex flex-col items-center gap-1 rounded-xl border border-red-800/40 bg-red-900/20 px-2 py-2.5 text-xs text-red-400 transition hover:border-red-700 hover:bg-red-900/30"
+              className="flex flex-col items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2 py-2.5 text-xs text-red-700 transition hover:border-red-300 hover:bg-red-100"
             >
               <RotateCcw size={14} />
               <span>Missed</span>
             </button>
             <button
               onClick={() => handleGrade(3)}
-              className="flex flex-col items-center gap-1 rounded-xl border border-yellow-800/40 bg-yellow-900/20 px-2 py-2.5 text-xs text-yellow-400 transition hover:border-yellow-700 hover:bg-yellow-900/30"
+              className="flex flex-col items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2 py-2.5 text-xs text-amber-700 transition hover:border-amber-300 hover:bg-amber-100"
             >
               <Check size={14} />
               <span>Almost</span>
             </button>
             <button
               onClick={() => handleGrade(5)}
-              className="flex flex-col items-center gap-1 rounded-xl border border-green-800/40 bg-green-900/20 px-2 py-2.5 text-xs text-green-400 transition hover:border-green-700 hover:bg-green-900/30"
+              className="flex flex-col items-center gap-1 rounded-xl border border-green-200 bg-green-50 px-2 py-2.5 text-xs text-green-700 transition hover:border-green-300 hover:bg-green-100"
             >
               <Check size={14} strokeWidth={2.5} />
               <span>Got it</span>
@@ -149,7 +149,7 @@ export function FlashcardOverlay({ cards, focusScore, onComplete, onDismiss }: P
 
         {/* Session result summary (shown briefly before onComplete fires) */}
         {isLast && phase === 'back' && (
-          <div className="border-t border-zinc-800 px-5 py-3 text-center text-xs text-zinc-500">
+          <div className="border-t border-border px-5 py-3 text-center text-xs text-muted-foreground">
             {correct + (results.length > results.length ? 0 : 0)} of {total} answered — closing…
           </div>
         )}

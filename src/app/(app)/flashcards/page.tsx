@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Plus, Trash2, Pencil, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import {
   CardDifficulty,
@@ -17,9 +17,9 @@ import {
 // ── Difficulty selector ────────────────────────────────────────────────────────
 
 const DIFF_OPTIONS: { value: CardDifficulty; label: string; color: string }[] = [
-  { value: 1, label: 'Easy',   color: 'border-green-700  text-green-400  data-[active]:bg-green-500/20'  },
-  { value: 2, label: 'Medium', color: 'border-yellow-700 text-yellow-400 data-[active]:bg-yellow-500/20' },
-  { value: 3, label: 'Hard',   color: 'border-red-700    text-red-400    data-[active]:bg-red-500/20'    },
+  { value: 1, label: 'Easy',   color: 'border-green-300  text-green-700  data-[active]:bg-green-500/15'  },
+  { value: 2, label: 'Medium', color: 'border-amber-300 text-amber-700 data-[active]:bg-amber-500/15' },
+  { value: 3, label: 'Hard',   color: 'border-red-300    text-red-700    data-[active]:bg-red-500/15'    },
 ];
 
 function DifficultyPicker({
@@ -81,14 +81,14 @@ function CardForm({ initial, onSave, onCancel }: CardFormProps) {
         onChange={(e) => setFront(e.target.value)}
         placeholder="Front — question or term"
         rows={2}
-        className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/30"
+        className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <textarea
         value={back}
         onChange={(e) => setBack(e.target.value)}
         placeholder="Back — answer or definition"
         rows={2}
-        className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/30"
+        className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <div className="flex items-center justify-between">
         <DifficultyPicker value={diff} onChange={setDiff} />
@@ -97,7 +97,7 @@ function CardForm({ initial, onSave, onCancel }: CardFormProps) {
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 transition"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/20 hover:text-foreground transition"
             >
               Cancel
             </button>
@@ -105,7 +105,7 @@ function CardForm({ initial, onSave, onCancel }: CardFormProps) {
           <button
             type="submit"
             disabled={!front.trim() || !back.trim()}
-            className="rounded-lg bg-green-500 px-4 py-1.5 text-xs font-semibold text-black transition hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+            className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-foreground transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
           >
             {initial ? 'Save' : 'Add card'}
           </button>
@@ -118,9 +118,9 @@ function CardForm({ initial, onSave, onCancel }: CardFormProps) {
 // ── Card row ──────────────────────────────────────────────────────────────────
 
 const DIFF_BADGE: Record<number, string> = {
-  1: 'bg-green-500/10  text-green-400',
-  2: 'bg-yellow-500/10 text-yellow-400',
-  3: 'bg-red-500/10    text-red-400',
+  1: 'bg-green-500/10  text-green-700',
+  2: 'bg-amber-500/10 text-amber-700',
+  3: 'bg-red-500/10    text-red-700',
 };
 const DIFF_LABEL: Record<number, string> = { 1: 'Easy', 2: 'Med', 3: 'Hard' };
 
@@ -142,7 +142,7 @@ function CardRow({
 
   if (editing) {
     return (
-      <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4">
+      <div className="rounded-xl border border-border bg-muted/30 p-4">
         <CardForm
           initial={card}
           onSave={(front, back, difficulty) => {
@@ -156,22 +156,22 @@ function CardRow({
   }
 
   return (
-    <div className="group rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 transition hover:border-zinc-700">
+    <div className="group rounded-xl border border-border bg-card p-4 transition hover:border-foreground/20">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-zinc-100 leading-snug">{card.front}</p>
-          <p className="mt-1.5 text-xs text-zinc-500 leading-snug">{card.back}</p>
+          <p className="text-sm font-medium text-foreground leading-snug">{card.front}</p>
+          <p className="mt-1.5 text-xs text-muted-foreground leading-snug">{card.back}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition group-hover:opacity-100">
           <button
             onClick={() => setEditing(true)}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
             <Pencil size={13} />
           </button>
           <button
             onClick={() => onDelete(card.id)}
-            className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
+            className="rounded p-1.5 text-muted-foreground transition hover:bg-muted hover:text-red-600"
           >
             <Trash2 size={13} />
           </button>
@@ -183,19 +183,19 @@ function CardRow({
           {DIFF_LABEL[card.difficulty]}
         </span>
         {isDue ? (
-          <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-400">Due</span>
+          <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-700">Due</span>
         ) : (
-          <span className="text-zinc-600">
+          <span className="text-muted-foreground/60">
             Next {new Date(card.nextReview + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
           </span>
         )}
         {accuracy !== null && (
-          <span className={cn('text-zinc-600', accuracy >= 80 ? 'text-green-500/70' : accuracy < 50 ? 'text-red-500/60' : '')}>
+          <span className={cn('text-muted-foreground/60', accuracy >= 80 ? 'text-green-600' : accuracy < 50 ? 'text-red-600' : '')}>
             {accuracy}% correct ({card.reviewCount} reviews)
           </span>
         )}
         {card.interval >= 21 && (
-          <span className="rounded bg-zinc-700/50 px-1.5 py-0.5 text-zinc-400">Mastered</span>
+          <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">Mastered</span>
         )}
       </div>
     </div>
@@ -249,7 +249,7 @@ export default function FlashcardsPage() {
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-black hover:bg-green-400 transition"
+          className="flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground hover:bg-accent/90 transition"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           {showForm ? 'Cancel' : 'New card'}
@@ -261,8 +261,8 @@ export default function FlashcardsPage() {
         <div className="mb-5 grid grid-cols-3 gap-3">
           {[
             { label: 'Total',    value: stats.total,    accent: '' },
-            { label: 'Due today', value: stats.due,     accent: stats.due > 0 ? 'text-amber-400' : '' },
-            { label: 'Mastered', value: stats.mastered, accent: stats.mastered > 0 ? 'text-green-400' : '' },
+            { label: 'Due today', value: stats.due,     accent: stats.due > 0 ? 'text-amber-600' : '' },
+            { label: 'Mastered', value: stats.mastered, accent: stats.mastered > 0 ? 'text-green-600' : '' },
           ].map(({ label, value, accent }) => (
             <div key={label} className="rounded-2xl border border-border bg-card p-4">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
@@ -274,8 +274,8 @@ export default function FlashcardsPage() {
 
       {/* Add card form */}
       {showForm && (
-        <div className="mb-5 rounded-2xl border border-zinc-700 bg-zinc-900/70 p-5">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-300">New card</h2>
+        <div className="mb-5 rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">New card</h2>
           <CardForm onSave={handleAdd} onCancel={() => setShowForm(false)} />
         </div>
       )}
@@ -290,8 +290,8 @@ export default function FlashcardsPage() {
               className={cn(
                 'rounded-lg px-3 py-1.5 text-xs font-medium transition capitalize',
                 filter === f
-                  ? 'bg-zinc-700 text-zinc-100'
-                  : 'text-zinc-500 hover:text-zinc-300',
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {f}
@@ -302,19 +302,19 @@ export default function FlashcardsPage() {
 
       {/* Card list */}
       {cards.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 py-20 text-center">
-          <p className="text-sm font-semibold text-zinc-500">No cards yet</p>
-          <p className="mt-1 text-xs text-zinc-600">Add your first card and it will appear during session breaks.</p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
+          <p className="text-sm font-semibold text-muted-foreground">No cards yet</p>
+          <p className="mt-1 text-xs text-muted-foreground/60">Add your first card and it will appear during session breaks.</p>
           <button
             onClick={() => setShowForm(true)}
-            className="mt-4 flex items-center gap-1.5 rounded-lg bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+            className="mt-4 flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:border-foreground/20 hover:text-foreground transition"
           >
             <Plus size={14} />
             Add card
           </button>
         </div>
       ) : visible.length === 0 ? (
-        <p className="py-10 text-center text-sm text-zinc-600">No cards match this filter.</p>
+        <p className="py-10 text-center text-sm text-muted-foreground">No cards match this filter.</p>
       ) : (
         <div className="space-y-2">
           {visible.map((card) => (
