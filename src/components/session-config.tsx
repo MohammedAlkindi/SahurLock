@@ -49,7 +49,6 @@ interface Props {
   disabled?: boolean;
   selectedTaskId: string;
   onTaskChange: (id: string) => void;
-  hideStartButton?: boolean;
 }
 
 function NumInput({
@@ -187,7 +186,7 @@ function TaskSelector({
 
 // ── Main card ─────────────────────────────────────────────────────────────────
 
-export function SessionConfigCard({ value, onChange, onStart, disabled, selectedTaskId, onTaskChange, hideStartButton }: Props) {
+export function SessionConfigCard({ value, onChange, onStart, disabled, selectedTaskId, onTaskChange }: Props) {
   const [activePreset, setActivePreset] = useState<string>('pomodoro');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -311,15 +310,13 @@ export function SessionConfigCard({ value, onChange, onStart, disabled, selected
         )}
       </div>
 
-      {!hideStartButton && (
-        <button
-          disabled={disabled}
-          onClick={onStart}
-          className="mt-5 w-full rounded-lg bg-green-500 px-4 py-3 text-sm font-semibold text-black transition hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
-        >
-          Start Session
-        </button>
-      )}
+      <button
+        disabled={disabled}
+        onClick={onStart}
+        className="mt-5 w-full rounded-lg bg-green-500 px-4 py-3 text-sm font-semibold text-black transition hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+      >
+        Start Session
+      </button>
     </section>
   );
 }

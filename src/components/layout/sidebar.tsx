@@ -16,6 +16,7 @@ import {
   Layers,
   Settings2,
   Clock,
+  Music2,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/cn';
@@ -27,6 +28,7 @@ const NAV = [
   { href: '/notes',      icon: NotebookPen, label: 'Notes'      },
   { href: '/flashcards', icon: Layers,      label: 'Flashcards' },
   { href: '/timer',      icon: Clock,       label: 'Timer'      },
+  { href: '/sounds',     icon: Music2,      label: 'Sounds'     },
 ];
 
 const COLLAPSED_KEY = 'sahurlock.sidebar.collapsed';

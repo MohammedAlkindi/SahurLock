@@ -37,6 +37,7 @@ import {
   Task,
 } from '@/lib/types';
 import { uid } from '@/lib/utils';
+import { stopAmbient } from '@/lib/ambient-sound';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,7 @@ export default function SessionPage() {
   // Task selection
   const [selectedTaskId, setSelectedTaskId]   = useState('');
   const [availableTasks, setAvailableTasks]   = useState<Task[]>([]);
+
 
   const videoRef      = useRef<HTMLVideoElement>(null);
   const audioRef      = useRef<HTMLVideoElement>(null);
@@ -236,10 +238,12 @@ export default function SessionPage() {
     setManualZoom(1);
     setCameraHidden(false);
     audioRef.current?.pause();
+    stopAmbient();
   };
 
   const finishSession = () => {
     cleanupMedia();
+    stopAmbient();
     const focusScore = computeDetailedScore(statsRef.current, configRef.current).total;
 
     // Resolve task info
@@ -601,254 +605,255 @@ export default function SessionPage() {
   const stabilizeRequired   = Math.min(5000, BASE_STABILIZE_MS + (violationCount - 1) * 500);
 
   return (
-    <main className="mx-auto max-w-[460px] px-4 py-6">
+    <main className="mx-auto max-w-6xl px-4 py-8">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-base font-bold tracking-tight">Session</h1>
+          <h1 className="text-2xl font-black tracking-tight">Session</h1>
           {appState === 'countdown' && (
-            <p className="text-xs text-muted-foreground">Starting in {countdownLeft}…</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">Starting in {countdownLeft}…</p>
           )}
           {isActive && selectedTask && !['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
-            <p className="text-xs text-muted-foreground">
-              Working on <span className="font-medium text-foreground">{selectedTask.title}</span>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              <span className="text-muted-foreground">Working on </span>
+              <span className="font-medium text-foreground">{selectedTask.title}</span>
             </p>
           )}
           {isActive && config.pomodoroEnabled && config.breakLimit > 0 && !['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
-            <p className="text-[11px] text-zinc-600">Round {pomodoroRound} / {pomodoroTotalRounds}</p>
+            <p className="mt-0.5 text-xs text-zinc-600">Round {pomodoroRound} of {pomodoroTotalRounds}</p>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center gap-3">
           <StatusBadge state={appState} />
-          {isActive && !['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setCameraHidden((v) => !v)}
-                className="rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-foreground/30 transition"
-                title="Toggle camera (H)"
-              >
-                {cameraHidden ? 'Show' : 'Hide'}
-              </button>
-              <button
-                onClick={finishSession}
-                className="rounded-lg border border-border px-2.5 py-1 text-xs text-foreground hover:border-foreground/30 transition"
-              >
-                End
-              </button>
-              <button
-                onClick={resetSession}
-                className="rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-foreground/30 transition"
-              >
-                Reset
-              </button>
+          {isActive && (
+            <div className="flex gap-2">
+              {!['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
+                <button
+                  onClick={() => setCameraHidden((v) => !v)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground/30 transition"
+                  title="Toggle camera (H)"
+                >
+                  {cameraHidden ? 'Show camera' : 'Hide camera'}
+                </button>
+              )}
+              {appState === 'calibrating' && (
+                <button onClick={resetSession} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground/30 transition">
+                  Cancel
+                </button>
+              )}
+              {!['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
+                <>
+                  <button
+                    onClick={finishSession}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:border-foreground/30 transition"
+                  >
+                    End Session
+                  </button>
+                  <button
+                    onClick={resetSession}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground/30 transition"
+                  >
+                    Reset
+                  </button>
+                </>
+              )}
             </div>
-          )}
-          {appState === 'calibrating' && (
-            <button onClick={resetSession} className="rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-foreground/30 transition">
-              Cancel
-            </button>
           )}
         </div>
       </div>
 
       {/* ── Idle / error ────────────────────────────────────────────────────── */}
       {!isActive && (
-        <div className="flex flex-col gap-3">
-
-          {/* 1 · Live Feed */}
-          <CameraPanel
-            videoRef={videoRef}
-            attention={attention}
-            calibrating={false}
-            calibrationGoodSamples={0}
-            calibrationNeeded={CALIBRATION_NEEDED}
-            calibrationStalled={false}
-            countdownLeft={0}
-            zoomLevel={1}
-            onZoomIn={() => {}}
-            onZoomOut={() => {}}
-          />
-
-          {/* 2 · Session setup (start button moved outside) */}
-          <SessionConfigCard
-            hideStartButton
-            value={config}
-            onChange={setConfig}
-            onStart={startSession}
-            disabled={appState !== 'idle' && appState !== 'camera_error'}
-            selectedTaskId={selectedTaskId}
-            onTaskChange={setSelectedTaskId}
-          />
-
-          {/* Camera error notice */}
-          {appState === 'camera_error' && (
-            <div className="rounded-xl border border-red-800/60 bg-red-900/20 px-4 py-3">
-              <p className="text-sm text-red-300">{cameraError}</p>
-              <div className="mt-3 flex gap-2">
-                {streamActive ? (
-                  <button onClick={retryCalibration} className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/70 transition">
-                    Retry Calibration
+        <div className="grid gap-5 lg:grid-cols-5">
+          {/* Left: config */}
+          <div className="lg:col-span-3">
+            <SessionConfigCard
+              value={config}
+              onChange={setConfig}
+              onStart={startSession}
+              disabled={appState !== 'idle' && appState !== 'camera_error'}
+              selectedTaskId={selectedTaskId}
+              onTaskChange={setSelectedTaskId}
+            />
+            {appState === 'camera_error' && (
+              <div className="mt-3 rounded-xl border border-red-800/60 bg-red-900/20 px-4 py-3">
+                <p className="text-sm text-red-300">{cameraError}</p>
+                <div className="mt-3 flex gap-2">
+                  {streamActive ? (
+                    <button onClick={retryCalibration} className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/70 transition">
+                      Retry Calibration
+                    </button>
+                  ) : (
+                    <button onClick={startSession} className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/70 transition">
+                      Try Again
+                    </button>
+                  )}
+                  <button onClick={resetSession} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:border-foreground/30 transition">
+                    Cancel
                   </button>
-                ) : (
-                  <button onClick={startSession} className="rounded-lg bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted/70 transition">
-                    Try Again
-                  </button>
-                )}
-                <button onClick={resetSession} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:border-foreground/30 transition">
-                  Cancel
-                </button>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* 3 · Primary CTA */}
-          <button
-            disabled={appState !== 'idle' && appState !== 'camera_error'}
-            onClick={startSession}
-            className="w-full rounded-xl bg-green-500 py-3.5 text-sm font-bold text-black transition hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
-          >
-            Start Session
-          </button>
-
-          {/* 4 · Spotify (secondary) */}
-          <SpotifyPanel />
+            )}
+          </div>
+          {/* Right: camera + spotify */}
+          <div className="flex flex-col gap-5 lg:col-span-2">
+            <CameraPanel
+              videoRef={videoRef}
+              attention={attention}
+              calibrating={false}
+              calibrationGoodSamples={0}
+              calibrationNeeded={CALIBRATION_NEEDED}
+              calibrationStalled={false}
+              countdownLeft={0}
+              zoomLevel={1}
+              onZoomIn={() => {}}
+              onZoomOut={() => {}}
+            />
+            <SpotifyPanel />
+          </div>
         </div>
       )}
 
       {/* ── Active session ───────────────────────────────────────────────────── */}
       {isActive && (
-        <div className="flex flex-col gap-3">
-
-          {/* Camera */}
-          {cameraHidden ? (
-            <div className="flex h-48 items-center justify-center rounded-2xl border border-border bg-card/40">
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground">Camera hidden</p>
-                <button
-                  onClick={() => setCameraHidden(false)}
-                  className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition"
-                >
-                  Show
-                </button>
-              </div>
-            </div>
-          ) : (
-            <CameraPanel
-              videoRef={videoRef}
-              attention={attention}
-              calibrating={appState === 'calibrating'}
-              calibrationGoodSamples={calibrationGoodSamples}
-              calibrationNeeded={CALIBRATION_NEEDED}
-              calibrationStalled={calibStalled}
-              countdownLeft={countdownLeft}
-              zoomLevel={manualZoom}
-              onZoomIn={() => { const n = Math.min(2, manualZoom + 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
-              onZoomOut={() => { const n = Math.max(1, manualZoom - 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
-              phoneReading={phoneReading}
-              phoneCheckMs={phoneCheckMs}
-              phoneCheckThresholdMs={PHONE_CHECK_THRESHOLD_MS}
-            />
-          )}
-
-          {/* Timer ring */}
-          <div className="flex flex-col items-center rounded-2xl border border-border bg-card py-6">
-            <FocusRing
-              remainingMs={remainingMs}
-              totalMs={totalMs}
-              appState={appState}
-              offscreenMs={offscreenMs}
-              thresholdMs={config.offscreenThresholdSec * 1000}
-            />
-          </div>
-
-          {/* Live stats */}
-          {!['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-                <LiveStat
-                  label="Focus"
-                  value={`${liveFocusPct}%`}
-                  accent={liveFocusPct >= 80 ? 'text-green-400' : liveFocusPct >= 60 ? 'text-yellow-400' : 'text-red-400'}
-                />
-                <LiveStat
-                  label="Score"
-                  value={liveScore}
-                  accent={liveScore >= 80 ? 'text-green-400' : liveScore >= 60 ? 'text-yellow-400' : 'text-red-400'}
-                />
-                <LiveStat
-                  label="Violations"
-                  value={violationCount}
-                  accent={violationCount === 0 ? 'text-green-400' : 'text-red-400'}
-                />
-                {config.phoneDetectionEnabled && (
-                  <LiveStat
-                    label="Phone checks"
-                    value={phoneCheckCount}
-                    accent={phoneCheckCount === 0 ? 'text-green-400' : 'text-orange-400'}
-                  />
-                )}
-              </div>
-
-              {/* Off-screen meter */}
-              <div className="mt-4">
-                <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
-                  <span>Off-screen</span>
-                  <span>{(offscreenMs / 1000).toFixed(1)}s / {config.offscreenThresholdSec}s</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={`h-full rounded-full transition-all duration-200 ${distPct > 80 ? 'bg-red-500' : distPct > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                    style={{ width: `${distPct}%` }}
-                  />
-                </div>
-              </div>
-
-              {attention && (
-                <p className="mt-3 text-[11px] text-zinc-600">
-                  Confidence <span className="text-zinc-400">{Math.round(attention.confidence * 100)}%</span>
-                  {' · '}
-                  <span className={derivedState === 'focused' ? 'text-green-400' : derivedState === 'warning' ? 'text-yellow-400' : 'text-red-400'}>
-                    {derivedState}
-                  </span>
-                </p>
-              )}
-              {attention?.guidance?.length ? (
-                <ul className="mt-2 space-y-0.5 text-xs text-amber-400">
-                  {attention.guidance.slice(0, 2).map((h) => (
-                    <li key={h} className="flex gap-1.5"><span className="text-amber-600">!</span><span>{h}</span></li>
-                  ))}
-                </ul>
-              ) : null}
-
-              <div className="mt-3 flex gap-3 text-[10px] text-zinc-700">
-                <span><kbd className="rounded bg-muted px-1 py-0.5">B</kbd> break</span>
-                <span><kbd className="rounded bg-muted px-1 py-0.5">E</kbd> end</span>
-                <span><kbd className="rounded bg-muted px-1 py-0.5">H</kbd> camera</span>
-              </div>
-            </div>
-          )}
-
-          {/* Breaks */}
-          {['focused', 'warning', 'break'].includes(appState) && config.breakLimit > 0 && (
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
-                Breaks {config.pomodoroEnabled && <span className="text-muted-foreground/40 normal-case font-normal">· auto</span>}
-              </h3>
-              <BreakControls
-                breakUsed={breakUsed}
-                breakLimit={config.breakLimit}
-                breakActive={appState === 'break'}
-                breakRemainingMs={breakRemainingMs}
-                onStartBreak={takeBreak}
-                disabled={!['focused', 'warning'].includes(appState)}
+        <div className="grid gap-5 lg:grid-cols-5">
+          {/* Left: timer + stats + breaks + spotify */}
+          <div className="flex flex-col gap-5 lg:col-span-2">
+            {/* Timer */}
+            <div className="flex flex-col items-center rounded-2xl border border-border bg-card py-8 shadow-xl">
+              <FocusRing
+                remainingMs={remainingMs}
+                totalMs={totalMs}
+                appState={appState}
+                offscreenMs={offscreenMs}
+                thresholdMs={config.offscreenThresholdSec * 1000}
               />
             </div>
-          )}
 
-          {/* Spotify */}
-          <SpotifyPanel compact />
+            {/* Live stats */}
+            {!['calibrating', 'countdown', 'requesting_permission'].includes(appState) && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
+                <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Live</h3>
+                <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+                  <LiveStat
+                    label="Focus"
+                    value={`${liveFocusPct}%`}
+                    accent={liveFocusPct >= 80 ? 'text-green-400' : liveFocusPct >= 60 ? 'text-yellow-400' : 'text-red-400'}
+                  />
+                  <LiveStat
+                    label="Score"
+                    value={liveScore}
+                    accent={liveScore >= 80 ? 'text-green-400' : liveScore >= 60 ? 'text-yellow-400' : 'text-red-400'}
+                  />
+                  <LiveStat
+                    label="Violations"
+                    value={violationCount}
+                    accent={violationCount === 0 ? 'text-green-400' : 'text-red-400'}
+                  />
+                  {config.phoneDetectionEnabled && (
+                    <LiveStat
+                      label="Phone checks"
+                      value={phoneCheckCount}
+                      accent={phoneCheckCount === 0 ? 'text-green-400' : 'text-orange-400'}
+                    />
+                  )}
+                </div>
+
+                {/* Off-screen meter */}
+                <div className="mt-5">
+                  <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
+                    <span>Off-screen</span>
+                    <span>{(offscreenMs / 1000).toFixed(1)}s / {config.offscreenThresholdSec}s</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full transition-all duration-200 ${distPct > 80 ? 'bg-red-500' : distPct > 50 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                      style={{ width: `${distPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {attention && (
+                  <p className="mt-3 text-xs text-zinc-600">
+                    Confidence: <span className="text-zinc-400">{Math.round(attention.confidence * 100)}%</span>
+                    {' · '}
+                    <span className={derivedState === 'focused' ? 'text-green-400' : derivedState === 'warning' ? 'text-yellow-400' : 'text-red-400'}>
+                      {derivedState}
+                    </span>
+                  </p>
+                )}
+                {attention?.guidance?.length ? (
+                  <ul className="mt-2 space-y-0.5 text-xs text-amber-400">
+                    {attention.guidance.slice(0, 2).map((h) => (
+                      <li key={h} className="flex gap-1.5"><span className="text-amber-600">!</span><span>{h}</span></li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <div className="mt-3 flex gap-3 text-[10px] text-zinc-700">
+                  <span><kbd className="rounded bg-muted px-1 py-0.5">B</kbd> break</span>
+                  <span><kbd className="rounded bg-muted px-1 py-0.5">E</kbd> end</span>
+                  <span><kbd className="rounded bg-muted px-1 py-0.5">H</kbd> camera</span>
+                </div>
+              </div>
+            )}
+
+            {/* Breaks */}
+            {['focused', 'warning', 'break'].includes(appState) && config.breakLimit > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-xl">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  Breaks {config.pomodoroEnabled && <span className="text-muted-foreground/50 normal-case font-normal">· auto</span>}
+                </h3>
+                <BreakControls
+                  breakUsed={breakUsed}
+                  breakLimit={config.breakLimit}
+                  breakActive={appState === 'break'}
+                  breakRemainingMs={breakRemainingMs}
+                  onStartBreak={takeBreak}
+                  disabled={!['focused', 'warning'].includes(appState)}
+                />
+              </div>
+            )}
+
+            {/* Ambient sound */}
+            {/* Spotify */}
+            <SpotifyPanel compact />
+          </div>
+
+          {/* Right: camera */}
+          <div className="lg:col-span-3">
+            {cameraHidden ? (
+              <div className="flex h-full min-h-[300px] items-center justify-center rounded-2xl border border-border bg-card/40">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Camera hidden</p>
+                  <button
+                    onClick={() => setCameraHidden(false)}
+                    className="mt-3 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition"
+                  >
+                    Show camera
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <CameraPanel
+                videoRef={videoRef}
+                attention={attention}
+                calibrating={appState === 'calibrating'}
+                calibrationGoodSamples={calibrationGoodSamples}
+                calibrationNeeded={CALIBRATION_NEEDED}
+                calibrationStalled={calibStalled}
+                countdownLeft={countdownLeft}
+                zoomLevel={manualZoom}
+                onZoomIn={() => { const n = Math.min(2, manualZoom + 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
+                onZoomOut={() => { const n = Math.max(1, manualZoom - 0.1); setManualZoom(n); detectorRef.current?.setManualZoom(n); }}
+                phoneReading={phoneReading}
+                phoneCheckMs={phoneCheckMs}
+                phoneCheckThresholdMs={PHONE_CHECK_THRESHOLD_MS}
+              />
+            )}
+          </div>
         </div>
       )}
 

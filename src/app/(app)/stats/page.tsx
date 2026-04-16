@@ -2,22 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, ChevronDown } from 'lucide-react';
+import { Trash2, ChevronDown, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   clearAllData,
   deleteSessionById,
   loadAggregate,
   loadHistory,
+  loadTasks,
 } from '@/lib/storage';
-import { AggregateStats, SessionHistoryItem } from '@/lib/types';
+import { AggregateStats, SessionHistoryItem, Task } from '@/lib/types';
 import { formatFocusTime, formatTime, getFocusGrade } from '@/lib/utils';
 import { computeDetailedScore } from '@/lib/focus-score';
 import { ScoreBreakdownPanel } from '@/components/score-breakdown';
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 function safeScore(item: SessionHistoryItem): number {
   const s = item.stats.focusScore ?? computeDetailedScore(item.stats, item.config).total;
   return Number.isNaN(s) ? 0 : s;
 }
+
+function dayKey(iso: string) {
+  return iso.slice(0, 10); // YYYY-MM-DD
+}
+
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
@@ -43,17 +58,236 @@ function ScoreBar({ score, label }: { score: number; label: string }) {
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────────
+// ── Weekly report ─────────────────────────────────────────────────────────────
+
+function WeeklyReport({ history, tasks }: { history: SessionHistoryItem[]; tasks: Task[] }) {
+  const now   = new Date();
+  const d7    = new Date(now); d7.setDate(d7.getDate() - 7);
+  const d14   = new Date(now); d14.setDate(d14.getDate() - 14);
+
+  const thisWeek = history.filter((h) => h.stats.startedAt && new Date(h.stats.startedAt) >= d7);
+  const lastWeek = history.filter((h) => {
+    const d = h.stats.startedAt ? new Date(h.stats.startedAt) : null;
+    return d && d >= d14 && d < d7;
+  });
+
+  if (thisWeek.length === 0) return null;
+
+  const sumMs   = (items: SessionHistoryItem[]) => items.reduce((a, b) => a + b.stats.totalFocusedMs, 0);
+  const avgScoreOf = (items: SessionHistoryItem[]) =>
+    items.length ? Math.round(items.reduce((a, b) => a + safeScore(b), 0) / items.length) : 0;
+
+  const thisFocusMs  = sumMs(thisWeek);
+  const lastFocusMs  = sumMs(lastWeek);
+  const thisAvgScore = avgScoreOf(thisWeek);
+  const lastAvgScore = avgScoreOf(lastWeek);
+  const bestSession  = thisWeek.reduce<SessionHistoryItem | null>((best, item) =>
+    !best || safeScore(item) > safeScore(best) ? item : best, null);
+
+  const focusDelta = lastFocusMs > 0
+    ? Math.round(((thisFocusMs - lastFocusMs) / lastFocusMs) * 100)
+    : null;
+  const scoreDelta = lastWeek.length > 0 ? thisAvgScore - lastAvgScore : null;
+
+  const completedThisWeek = tasks.filter(
+    (t) => t.status === 'done' && t.completedAt && new Date(t.completedAt) >= d7
+  ).length;
+
+  const TrendIcon = ({ delta }: { delta: number | null }) => {
+    if (delta === null) return <Minus size={12} className="text-muted-foreground/40" />;
+    if (delta > 0)  return <TrendingUp  size={12} className="text-green-400" />;
+    if (delta < 0)  return <TrendingDown size={12} className="text-red-400" />;
+    return <Minus size={12} className="text-muted-foreground/40" />;
+  };
+
+  return (
+    <div className="mb-5 rounded-2xl border border-border bg-card p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold">This week</h2>
+        <span className="text-[11px] text-muted-foreground/50">
+          {d7.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} –{' '}
+          {now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Sessions */}
+        <div className="rounded-xl bg-muted/30 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Sessions</p>
+          <p className="mt-1 text-2xl font-black tabular-nums">{thisWeek.length}</p>
+          {lastWeek.length > 0 && (
+            <p className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground/50">
+              <TrendIcon delta={thisWeek.length - lastWeek.length} />
+              vs {lastWeek.length} last week
+            </p>
+          )}
+        </div>
+
+        {/* Focus time */}
+        <div className="rounded-xl bg-muted/30 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Focus time</p>
+          <p className="mt-1 text-2xl font-black tabular-nums text-green-400">{formatFocusTime(thisFocusMs)}</p>
+          {focusDelta !== null && (
+            <p className={`mt-0.5 flex items-center gap-1 text-[10px] ${focusDelta >= 0 ? 'text-green-500/60' : 'text-red-500/60'}`}>
+              <TrendIcon delta={focusDelta} />
+              {focusDelta >= 0 ? '+' : ''}{focusDelta}% vs last week
+            </p>
+          )}
+        </div>
+
+        {/* Avg score */}
+        <div className="rounded-xl bg-muted/30 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Avg score</p>
+          <p className={`mt-1 text-2xl font-black tabular-nums ${getFocusGrade(thisAvgScore).color}`}>{thisAvgScore}</p>
+          {scoreDelta !== null && (
+            <p className={`mt-0.5 flex items-center gap-1 text-[10px] ${scoreDelta >= 0 ? 'text-green-500/60' : 'text-red-500/60'}`}>
+              <TrendIcon delta={scoreDelta} />
+              {scoreDelta >= 0 ? '+' : ''}{scoreDelta} pts vs last week
+            </p>
+          )}
+        </div>
+
+        {/* Tasks / best session */}
+        <div className="rounded-xl bg-muted/30 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Tasks done</p>
+          <p className="mt-1 text-2xl font-black tabular-nums text-accent">{completedThisWeek}</p>
+          {bestSession && (
+            <p className="mt-0.5 text-[10px] text-muted-foreground/50">
+              Best: <span className={getFocusGrade(safeScore(bestSession)).color}>{safeScore(bestSession)}</span>
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Focus heatmap ─────────────────────────────────────────────────────────────
+
+function FocusHeatmap({ history }: { history: SessionHistoryItem[] }) {
+  const WEEKS = 16;
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  // Build a map: YYYY-MM-DD → avg score
+  const scoreByDay = new Map<string, number[]>();
+  for (const item of history) {
+    if (!item.stats.startedAt) continue;
+    const key = dayKey(item.stats.startedAt);
+    const scores = scoreByDay.get(key) ?? [];
+    scores.push(safeScore(item));
+    scoreByDay.set(key, scores);
+  }
+
+  // Build grid: columns = weeks (oldest → newest), rows = Mon–Sun
+  const cells: { date: Date; score: number | null }[][] = [];
+  // Find the Monday of the week WEEKS weeks ago
+  const startDate = addDays(today, -(WEEKS * 7 - 1));
+  // Align to Monday
+  const dow = startDate.getDay(); // 0=Sun
+  const aligned = addDays(startDate, dow === 0 ? -6 : 1 - dow);
+
+  for (let w = 0; w < WEEKS; w++) {
+    const col: { date: Date; score: number | null }[] = [];
+    for (let d = 0; d < 7; d++) {
+      const date = addDays(aligned, w * 7 + d);
+      const key  = dayKey(date.toISOString());
+      const vals = scoreByDay.get(key);
+      const score = vals ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+      col.push({ date, score });
+    }
+    cells.push(col);
+  }
+
+  const cellColor = (score: number | null) => {
+    if (score === null) return 'bg-muted/40';
+    if (score >= 80) return 'bg-green-500';
+    if (score >= 60) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const cellOpacity = (score: number | null) => {
+    if (score === null) return '';
+    if (score >= 80) return score >= 90 ? 'opacity-100' : 'opacity-70';
+    if (score >= 60) return score >= 70 ? 'opacity-80' : 'opacity-60';
+    return 'opacity-60';
+  };
+
+  const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  return (
+    <div className="mb-5 rounded-2xl border border-border bg-card p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Focus history</h2>
+        <div className="flex gap-3 text-[10px] text-muted-foreground/50">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-green-500" />80+</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-yellow-500" />60–79</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-red-500" />&lt;60</span>
+        </div>
+      </div>
+
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {/* Day labels */}
+        <div className="flex shrink-0 flex-col justify-around pr-1" style={{ gap: '3px' }}>
+          {DAYS.map((d, i) => (
+            <span key={i} className="text-[9px] leading-none text-muted-foreground/40" style={{ height: 12 }}>{d}</span>
+          ))}
+        </div>
+
+        {/* Week columns */}
+        {cells.map((week, wi) => (
+          <div key={wi} className="flex shrink-0 flex-col" style={{ gap: '3px' }}>
+            {week.map(({ date, score }, di) => {
+              const isFuture = date > today;
+              return (
+                <div
+                  key={di}
+                  title={isFuture ? '' : `${dayKey(date.toISOString())}${score !== null ? ` · ${score}` : ''}`}
+                  className={`h-3 w-3 rounded-sm transition-opacity ${
+                    isFuture
+                      ? 'bg-muted/20'
+                      : `${cellColor(score)} ${cellOpacity(score)}`
+                  }`}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Month labels */}
+      <div className="mt-2 flex gap-1.5 pl-7 overflow-x-auto">
+        {cells.map((week, wi) => {
+          const first = week[0].date;
+          const showLabel = first.getDate() <= 7;
+          return (
+            <div key={wi} className="w-3 shrink-0 text-center">
+              {showLabel && (
+                <span className="text-[9px] text-muted-foreground/40">
+                  {first.toLocaleDateString(undefined, { month: 'short' })}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function StatsPage() {
   const [agg,        setAgg]        = useState<AggregateStats | null>(null);
   const [history,    setHistory]    = useState<SessionHistoryItem[]>([]);
+  const [tasks,      setTasks]      = useState<Task[]>([]);
   const [confirming, setConfirming] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const reload = () => {
     setAgg(loadAggregate());
     setHistory(loadHistory());
+    setTasks(loadTasks());
   };
 
   useEffect(() => { reload(); }, []);
@@ -63,9 +297,11 @@ export default function StatsPage() {
   const hasData   = agg.sessions > 0;
   const rawAvg    = hasData ? agg.totalFocusScore / agg.sessions : 0;
   const avgScore  = Number.isNaN(rawAvg) ? 0 : Math.round(rawAvg);
-  const bestScore = history.length
-    ? Math.max(...history.map(safeScore))
-    : 0;
+  const bestScore = history.length ? Math.max(...history.map(safeScore)) : 0;
+
+  const doneTasks  = tasks.filter((t) => t.status === 'done').length;
+  const totalTasks = tasks.length;
+  const completionRate = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : null;
 
   const chartItems = [...history].slice(0, 16).reverse().map((item) => ({
     score: safeScore(item),
@@ -75,16 +311,8 @@ export default function StatsPage() {
     id: item.id,
   }));
 
-  const handleDelete = (id: string) => {
-    deleteSessionById(id);
-    reload();
-  };
-
-  const handleClearAll = () => {
-    clearAllData();
-    setConfirming(false);
-    reload();
-  };
+  const handleDelete = (id: string) => { deleteSessionById(id); reload(); };
+  const handleClearAll = () => { clearAllData(); setConfirming(false); reload(); };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -120,7 +348,11 @@ export default function StatsPage() {
         </div>
       ) : (
         <>
-          <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-5">
+          {/* Weekly report */}
+          <WeeklyReport history={history} tasks={tasks} />
+
+          {/* Stat cards */}
+          <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <StatCard label="Sessions"   value={String(agg.sessions)} />
             <StatCard label="Focus time" value={formatFocusTime(agg.totalFocusedMs)} accent="text-green-400" />
             <StatCard label="Avg score"  value={String(avgScore)}  accent={getFocusGrade(avgScore).color} />
@@ -131,8 +363,18 @@ export default function StatsPage() {
               sub={`best ${agg.longestStreak}d`}
               accent={agg.currentStreak > 0 ? 'text-orange-400' : 'text-muted-foreground'}
             />
+            <StatCard
+              label="Tasks done"
+              value={String(doneTasks)}
+              sub={completionRate !== null ? `${completionRate}% of ${totalTasks}` : undefined}
+              accent={doneTasks > 0 ? 'text-accent' : 'text-muted-foreground'}
+            />
           </div>
 
+          {/* Focus heatmap */}
+          <FocusHeatmap history={history} />
+
+          {/* Score trend */}
           {chartItems.length > 1 && (
             <div className="mb-5 rounded-2xl border border-border bg-card p-5">
               <div className="mb-4 flex items-center justify-between">
@@ -149,6 +391,7 @@ export default function StatsPage() {
             </div>
           )}
 
+          {/* History table */}
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="border-b border-border px-5 py-3.5">
               <h2 className="text-sm font-semibold text-foreground">
@@ -172,10 +415,10 @@ export default function StatsPage() {
                 </thead>
                 <tbody>
                   {history.map((item) => {
-                    const score     = safeScore(item);
-                    const grade     = getFocusGrade(score);
-                    const sessionMs = item.config.durationMinutes * 60_000;
-                    const focusPct  = sessionMs > 0 ? Math.round((item.stats.totalFocusedMs / sessionMs) * 100) : 0;
+                    const score      = safeScore(item);
+                    const grade      = getFocusGrade(score);
+                    const sessionMs  = item.config.durationMinutes * 60_000;
+                    const focusPct   = sessionMs > 0 ? Math.round((item.stats.totalFocusedMs / sessionMs) * 100) : 0;
                     const isExpanded = expandedId === item.id;
                     const hasNotes   = !!item.stats.notes?.trim();
 
@@ -243,9 +486,7 @@ export default function StatsPage() {
                                 />
                                 {hasNotes && (
                                   <div>
-                                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                                      Notes
-                                    </p>
+                                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Notes</p>
                                     <p className="text-xs text-muted-foreground whitespace-pre-wrap">{item.stats.notes}</p>
                                   </div>
                                 )}
