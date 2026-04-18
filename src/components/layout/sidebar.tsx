@@ -10,7 +10,6 @@ import {
   NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
-  Zap,
   Sun,
   Moon,
   Layers,
@@ -18,6 +17,21 @@ import {
   Clock,
   Music2,
 } from 'lucide-react';
+
+function SahurLockMark({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+      <rect width="64" height="64" rx="14" fill="currentColor" className="text-accent"/>
+      <path d="M10 32 C18 20, 46 20, 54 32 C46 44, 18 44, 10 32Z" fill="none" stroke="white" strokeWidth="3"/>
+      <circle cx="32" cy="32" r="8.5" stroke="white" strokeWidth="2.5"/>
+      <circle cx="32" cy="32" r="4" fill="white"/>
+      <path d="M29.5 30.5V28a2.5 2.5 0 015 0v2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="text-accent"/>
+      <rect x="27.5" y="30" width="9" height="7" rx="2" fill="currentColor" className="text-accent"/>
+      <circle cx="32" cy="33.2" r="1.3" fill="white"/>
+      <rect x="31.3" y="33.8" width="1.4" height="2" rx="0.7" fill="white"/>
+    </svg>
+  );
+}
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/cn';
 
@@ -69,8 +83,8 @@ export function Sidebar() {
         'flex items-center border-b border-border py-4',
         collapsed ? 'justify-center px-0' : 'gap-2 px-4'
       )}>
-        <Link href="/" className="flex items-center gap-1.5 font-black tracking-tight hover:text-accent transition-colors">
-          <Zap size={18} className="text-accent shrink-0" />
+        <Link href="/" className="flex items-center gap-1.5 font-black tracking-tight hover:opacity-80 transition-opacity">
+          <SahurLockMark size={22} />
           {!collapsed && <span>SahurLock</span>}
         </Link>
       </div>

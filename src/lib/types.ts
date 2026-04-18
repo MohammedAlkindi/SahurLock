@@ -21,6 +21,15 @@ export interface SessionConfig {
   punishmentMedia: string;
   pomodoroEnabled: boolean;
   phoneDetectionEnabled: boolean;
+  advancedEyeTrackingEnabled?: boolean;
+}
+
+export interface CustomVideoMeta {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  addedAt: string;
 }
 
 export interface SessionPreset {
@@ -116,6 +125,7 @@ export interface AttentionReading {
   eyeDirectionX: number;
   eyeDirectionY: number;
   eyeOpenRatio: number;
+  eyesFocused: boolean;
   leftEye: EyeData | null;
   rightEye: EyeData | null;
   lightingCondition: 'dark' | 'backlit' | 'normal';

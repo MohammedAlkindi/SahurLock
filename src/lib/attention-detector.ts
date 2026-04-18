@@ -103,6 +103,7 @@ function blankReading(
     eyeDirectionX: 0,
     eyeDirectionY: 0,
     eyeOpenRatio: 0,
+    eyesFocused: false,
     leftEye: null,
     rightEye: null,
     lightingCondition
@@ -453,6 +454,7 @@ export class AttentionDetector {
         attention: 'uncertain', guidance, faceBox,
         eyeDirectionX: eye.eyeDirectionX, eyeDirectionY: eye.eyeDirectionY,
         eyeOpenRatio: eye.eyeOpenRatio,
+        eyesFocused: true,
         leftEye: eye.leftEye, rightEye: eye.rightEye,
         lightingCondition
       };
@@ -462,6 +464,7 @@ export class AttentionDetector {
     const eyeDeltaX  = Math.abs(eye.eyeDirectionX - baseline.eyeCenterX);
     const eyeDeltaY  = Math.abs(eye.eyeDirectionY - baseline.eyeCenterY);
     const eyesClosed = eye.eyeOpenRatio < baseline.eyeOpenRatio * EYE_CLOSED_RATIO;
+    const eyesFocused = !eyesClosed && eyeDeltaX <= GAZE_OFFSCREEN_X && eyeDeltaY <= GAZE_OFFSCREEN_Y;
 
     const yawDelta   = Math.abs(yaw   - baseline.yaw);
     const pitchDelta = Math.abs(pitch - baseline.pitch);
@@ -490,6 +493,7 @@ export class AttentionDetector {
       attention, guidance, faceBox,
       eyeDirectionX: eye.eyeDirectionX, eyeDirectionY: eye.eyeDirectionY,
       eyeOpenRatio: eye.eyeOpenRatio,
+      eyesFocused,
       leftEye: eye.leftEye, rightEye: eye.rightEye,
       lightingCondition
     };

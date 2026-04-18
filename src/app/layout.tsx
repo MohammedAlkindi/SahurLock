@@ -5,9 +5,14 @@ import { GeistMono } from 'geist/font/mono';
 import { ThemeProvider } from 'next-themes';
 
 export const metadata: Metadata = {
-  title: 'SahurLock — Browser-based attention tracking',
+  title: 'SahurLock',
   description:
-    'Real-time eye gaze tracking via MediaPipe. Configurable grace period, punishment clips on violation. 100% local, no cloud.'
+    'Real-time eye gaze tracking via MediaPipe. Configurable grace period, punishment clips on violation. 100% local, no cloud.',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Volume2, VolumeX, Square, Headphones } from 'lucide-react';
+import { Search, Volume2, VolumeX, Square, Headphones, ChevronRight } from 'lucide-react';
 import { SpotifyPanel } from '@/components/spotify-panel';
 import {
   SOUNDS,
@@ -12,9 +12,14 @@ import {
   currentAmbient,
 } from '@/lib/ambient-sound';
 
-// Ordered list of categories for the filter bar
-const CATEGORIES = [
-  'All',
+// ── Curation ───────────────────────────────────────────────────────────────────
+
+const FEATURED_IDS = ['brown', 'rain', 'cafe', 'campfire', 'ocean-waves', 'alpha', 'pink', 'deep-space'];
+const INITIAL_PER_CATEGORY = 8;
+const RECENT_KEY = 'sahurlock.recent_sounds';
+const MAX_RECENT = 3;
+
+const CATEGORY_ORDER = [
   'Noise',
   'Rain & Water',
   'Wind & Weather',
@@ -26,29 +31,140 @@ const CATEGORIES = [
   'Textures',
 ];
 
-export default function SoundsPage() {
-  const [activeId, setActiveId]       = useState<string | null>(null);
-  const [volume, setVolumeState]      = useState(0.25);
-  const [category, setCategory]       = useState('All');
-  const [query, setQuery]             = useState('');
-  const filterRef = useRef<HTMLDivElement>(null);
+function loadRecent(): string[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]'); } catch { return []; }
+}
 
-  // Sync with any sound that was already playing (e.g. started from another page)
+function saveRecent(id: string) {
+  try {
+    const prev = loadRecent().filter((r) => r !== id);
+    localStorage.setItem(RECENT_KEY, JSON.stringify([id, ...prev].slice(0, MAX_RECENT)));
+  } catch {}
+}
+
+// ── Sound tile ─────────────────────────────────────────────────────────────────
+
+function SoundTile({
+  sound,
+  isActive,
+  onToggle,
+  size = 'md',
+}: {
+  sound: SoundDef;
+  isActive: boolean;
+  onToggle: () => void;
+  size?: 'sm' | 'md';
+}) {
+  if (size === 'sm') {
+    return (
+      <button
+        onClick={onToggle}
+        className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all ${
+          isActive
+            ? 'border-accent/40 bg-accent/10 text-accent'
+            : 'border-border bg-card text-foreground hover:border-foreground/20 hover:bg-muted/40'
+        }`}
+      >
+        <span className="text-base leading-none shrink-0">{sound.emoji}</span>
+        <span className="text-xs font-medium leading-tight truncate">{sound.label}</span>
+        {isActive && <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={onToggle}
+      className={`relative flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition-all ${
+        isActive
+          ? 'border-accent/40 bg-accent/10'
+          : 'border-border bg-card hover:border-foreground/20 hover:bg-muted/40'
+      }`}
+    >
+      <span className="text-xl leading-none">{sound.emoji}</span>
+      <span className={`text-xs font-semibold leading-tight ${isActive ? 'text-accent' : 'text-foreground'}`}>
+        {sound.label}
+      </span>
+      {sound.headphones && <Headphones size={9} className="text-amber-500" />}
+      {isActive && <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-accent" />}
+    </button>
+  );
+}
+
+// ── Category accordion ─────────────────────────────────────────────────────────
+
+function CategorySection({
+  name,
+  sounds,
+  activeId,
+  onToggle,
+  defaultOpen,
+}: {
+  name: string;
+  sounds: SoundDef[];
+  activeId: string | null;
+  onToggle: (id: string) => void;
+  defaultOpen: boolean;
+}) {
+  const [open,    setOpen]    = useState(defaultOpen);
+  const [showAll, setShowAll] = useState(false);
+
+  const visible = showAll ? sounds : sounds.slice(0, INITIAL_PER_CATEGORY);
+  const hasMore  = sounds.length > INITIAL_PER_CATEGORY;
+  const preview  = sounds.slice(0, 3).map((s) => s.emoji).join(' ');
+
+  return (
+    <div className="border-b border-border/50 last:border-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:text-foreground"
+      >
+        <ChevronRight
+          size={13}
+          className={`shrink-0 text-muted-foreground/50 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+        />
+        <span className="flex-1 text-sm font-medium text-foreground">{name}</span>
+        {!open && (
+          <span className="text-[11px] text-muted-foreground/50 tracking-wide">{preview}</span>
+        )}
+        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          {sounds.length}
+        </span>
+      </button>
+
+      {open && (
+        <div className="pb-3">
+          <div className="grid gap-1.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {visible.map((s) => (
+              <SoundTile key={s.id} sound={s} isActive={activeId === s.id} onToggle={() => onToggle(s.id)} />
+            ))}
+          </div>
+          {hasMore && !showAll && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="mt-2.5 text-xs font-medium text-muted-foreground hover:text-foreground transition"
+            >
+              Show {sounds.length - INITIAL_PER_CATEGORY} more in {name}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
+
+export default function SoundsPage() {
+  const [activeId,  setActiveId]  = useState<string | null>(null);
+  const [volume,    setVolumeState] = useState(0.25);
+  const [query,     setQuery]     = useState('');
+  const [recent,    setRecent]    = useState<string[]>([]);
+
   useEffect(() => {
     setActiveId(currentAmbient());
+    setRecent(loadRecent());
   }, []);
-
-  const filtered = useMemo<SoundDef[]>(() => {
-    let list = SOUNDS;
-    if (category !== 'All') list = list.filter((s) => s.category === category);
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter((s) =>
-        s.label.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [category, query]);
 
   const toggle = (id: string) => {
     if (activeId === id) {
@@ -57,6 +173,8 @@ export default function SoundsPage() {
     } else {
       playAmbient(id, volume);
       setActiveId(id);
+      saveRecent(id);
+      setRecent(loadRecent());
     }
   };
 
@@ -65,146 +183,153 @@ export default function SoundsPage() {
     setAmbientVolume(v);
   };
 
-  const stop = () => {
-    stopAmbient();
-    setActiveId(null);
-  };
+  const stop = () => { stopAmbient(); setActiveId(null); };
 
-  const activeSound = SOUNDS.find((s) => s.id === activeId) ?? null;
+  const activeSound   = SOUNDS.find((s) => s.id === activeId) ?? null;
+  const featuredSounds = FEATURED_IDS.map((id) => SOUNDS.find((s) => s.id === id)).filter(Boolean) as SoundDef[];
+  const recentSounds   = recent.map((id) => SOUNDS.find((s) => s.id === id)).filter(Boolean) as SoundDef[];
 
-  // Scroll active category pill into view
-  useEffect(() => {
-    if (!filterRef.current) return;
-    const active = filterRef.current.querySelector('[data-active="true"]') as HTMLElement | null;
-    active?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-  }, [category]);
+  // Category groups (ordered)
+  const byCategory = useMemo(() => {
+    return CATEGORY_ORDER.map((cat) => ({
+      name: cat,
+      sounds: SOUNDS.filter((s) => s.category === cat),
+    }));
+  }, []);
+
+  // Search: flat filtered list across all sounds
+  const searchResults = useMemo<SoundDef[]>(() => {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    return SOUNDS.filter(
+      (s) => s.label.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  const isSearching = query.trim().length > 0;
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* ── Now playing bar ──────────────────────────────────────────────────── */}
+
+      {/* ── Now playing bar ───────────────────────────────────────────────────── */}
       {activeSound && (
-        <div className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-sm px-5 py-3 flex items-center gap-4">
-          <span className="text-lg">{activeSound.emoji}</span>
+        <div className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-sm px-5 py-2.5 flex items-center gap-3">
+          <span className="text-base leading-none">{activeSound.emoji}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{activeSound.label}</p>
-            <p className="text-[11px] text-muted-foreground">{activeSound.category}</p>
+            <p className="text-sm font-semibold text-foreground truncate leading-none">{activeSound.label}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{activeSound.category}</p>
           </div>
           {activeSound.headphones && (
-            <span className="hidden sm:flex items-center gap-1 text-[10px] text-amber-600">
-              <Headphones size={11} /> headphones
+            <span className="hidden sm:flex items-center gap-1 text-[10px] text-amber-600 shrink-0">
+              <Headphones size={10} />headphones
             </span>
           )}
-          <div className="flex items-center gap-2">
-            <VolumeX size={13} className="text-muted-foreground/50 shrink-0" />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <VolumeX size={12} className="text-muted-foreground/40" />
             <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.02}
-              value={volume}
+              type="range" min={0} max={1} step={0.02} value={volume}
               onChange={(e) => handleVolume(Number(e.target.value))}
-              className="w-24 h-1 cursor-pointer accent-accent"
+              className="w-20 h-1 cursor-pointer accent-accent"
             />
-            <Volume2 size={13} className="text-muted-foreground/50 shrink-0" />
+            <Volume2 size={12} className="text-muted-foreground/40" />
           </div>
           <button
             onClick={stop}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-red-300 hover:text-red-600 transition"
+            className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-red-300 hover:text-red-600 transition"
           >
-            <Square size={10} className="fill-current" />
-            Stop
+            <Square size={9} className="fill-current" />Stop
           </button>
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-6xl px-5 py-8 flex-1">
-        {/* ── Page header ────────────────────────────────────────────────────── */}
-        <div className="mb-7">
-          <h1 className="text-2xl font-black tracking-tight">Sounds</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {SOUNDS.length} ambient sounds — all generated in your browser, no files
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-5xl px-5 py-6 flex-1">
 
-        {/* ── Search + category filter ────────────────────────────────────────── */}
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          {/* Search */}
+        {/* ── Header + search ────────────────────────────────────────────────── */}
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-black tracking-tight">Sounds</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">{SOUNDS.length} ambient · browser-generated</p>
+          </div>
           <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search sounds…"
+              placeholder="Search…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full sm:w-56 rounded-lg border border-border bg-background pl-8 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-40 rounded-lg border border-border bg-background pl-7 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-accent focus:outline-none"
             />
-          </div>
-
-          {/* Category pills — horizontal scroll */}
-          <div
-            ref={filterRef}
-            className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar"
-          >
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                data-active={category === cat}
-                onClick={() => setCategory(cat)}
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition ${
-                  category === cat
-                    ? 'bg-accent text-accent-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
           </div>
         </div>
 
-        {/* ── Sound grid ─────────────────────────────────────────────────────── */}
-        {filtered.length === 0 ? (
-          <p className="py-16 text-center text-sm text-muted-foreground">No sounds match your search.</p>
+        {/* ── Search results ─────────────────────────────────────────────────── */}
+        {isSearching ? (
+          searchResults.length === 0 ? (
+            <p className="py-12 text-center text-sm text-muted-foreground">No results for &ldquo;{query}&rdquo;</p>
+          ) : (
+            <div>
+              <p className="mb-3 text-xs text-muted-foreground">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</p>
+              <div className="grid gap-1.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                {searchResults.map((s) => (
+                  <SoundTile key={s.id} sound={s} isActive={activeId === s.id} onToggle={() => toggle(s.id)} />
+                ))}
+              </div>
+            </div>
+          )
         ) : (
-          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {filtered.map((sound) => {
-              const isActive = activeId === sound.id;
-              return (
-                <button
-                  key={sound.id}
-                  onClick={() => toggle(sound.id)}
-                  className={`relative flex flex-col items-start gap-1.5 rounded-xl border p-3.5 text-left transition-all ${
-                    isActive
-                      ? 'border-accent/40 bg-accent/10'
-                      : 'border-border bg-card hover:border-foreground/20 hover:bg-muted/40'
-                  }`}
-                >
-                  <span className="text-xl leading-none">{sound.emoji}</span>
-                  <span className={`text-xs font-semibold leading-tight ${isActive ? 'text-accent' : 'text-foreground'}`}>
-                    {sound.label}
-                  </span>
-                  {sound.headphones && (
-                    <Headphones size={9} className="text-amber-500 shrink-0" />
-                  )}
-                  {isActive && (
-                    <span className="absolute top-2 right-2 flex h-1.5 w-1.5 rounded-full bg-accent" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            {/* ── Recently used ──────────────────────────────────────────────── */}
+            {recentSounds.length > 0 && (
+              <div className="mb-6">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">Recent</p>
+                <div className="flex gap-2 flex-wrap">
+                  {recentSounds.map((s) => (
+                    <SoundTile key={s.id} sound={s} isActive={activeId === s.id} onToggle={() => toggle(s.id)} size="sm" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Featured ───────────────────────────────────────────────────── */}
+            <div className="mb-6">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">Featured</p>
+              <div className="grid gap-1.5 grid-cols-4 sm:grid-cols-8">
+                {featuredSounds.map((s) => (
+                  <SoundTile key={s.id} sound={s} isActive={activeId === s.id} onToggle={() => toggle(s.id)} />
+                ))}
+              </div>
+            </div>
+
+            {/* ── Category library ───────────────────────────────────────────── */}
+            <div className="mb-1">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">Library</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card px-4">
+              {byCategory.map(({ name, sounds }) => (
+                <CategorySection
+                  key={name}
+                  name={name}
+                  sounds={sounds}
+                  activeId={activeId}
+                  onToggle={toggle}
+                  defaultOpen={sounds.some((s) => s.id === activeId)}
+                />
+              ))}
+            </div>
+          </>
         )}
 
-        {/* ── Music section (Spotify) ─────────────────────────────────────────── */}
-        <div className="mt-12">
-          <div className="mb-5">
-            <h2 className="text-lg font-bold tracking-tight">Music</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Stream music via Spotify while you work</p>
+        {/* ── Music / Spotify ─────────────────────────────────────────────────── */}
+        <div className="mt-8 border-t border-border pt-6">
+          <div className="mb-4">
+            <h2 className="text-sm font-bold tracking-tight">Music</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Stream via Spotify while you work</p>
           </div>
-          <div className="max-w-sm">
+          <div className="max-w-xs">
             <SpotifyPanel />
           </div>
         </div>
+
       </div>
     </div>
   );

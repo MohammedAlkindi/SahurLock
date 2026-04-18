@@ -32,6 +32,100 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
+// ── Streak banner ─────────────────────────────────────────────────────────────
+
+const STREAK_MILESTONES = [3, 7, 14, 21, 30, 60, 100];
+
+function StreakBanner({ agg }: { agg: AggregateStats }) {
+  const streak  = agg.currentStreak;
+  const longest = agg.longestStreak;
+  const doneToday = agg.lastSessionDate === new Date().toDateString();
+
+  const nextMilestone = STREAK_MILESTONES.find((m) => m > streak) ?? null;
+  const prevMilestone = [...STREAK_MILESTONES].reverse().find((m) => m <= streak) ?? 0;
+  const progressPct   = nextMilestone
+    ? Math.round(((streak - prevMilestone) / (nextMilestone - prevMilestone)) * 100)
+    : 100;
+
+  const bannerClass = streak === 0
+    ? 'border-border bg-card'
+    : doneToday
+      ? 'border-orange-200 bg-gradient-to-r from-orange-50/60 to-amber-50/40 dark:border-orange-900/40 dark:from-orange-950/20 dark:to-amber-950/10'
+      : 'border-yellow-200/80 bg-yellow-50/40 dark:border-yellow-900/40 dark:bg-yellow-950/10';
+
+  return (
+    <div className={`mb-5 rounded-2xl border p-5 ${bannerClass}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <span className={`text-5xl leading-none select-none ${streak === 0 ? 'grayscale opacity-25' : ''}`}>🔥</span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-5xl font-black tabular-nums ${streak > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                {streak}
+              </span>
+              <span className="text-base font-semibold text-muted-foreground">day streak</span>
+            </div>
+            {longest > 0 && (
+              <p className="text-[11px] text-muted-foreground/50">Best: {longest} days</p>
+            )}
+          </div>
+        </div>
+
+        {streak > 0 && (
+          doneToday ? (
+            <span className="shrink-0 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-400">
+              Locked in today ✓
+            </span>
+          ) : (
+            <span className="shrink-0 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-xs font-semibold text-yellow-700 dark:border-yellow-900/50 dark:bg-yellow-950/30 dark:text-yellow-400">
+              At risk — no session today
+            </span>
+          )
+        )}
+      </div>
+
+      {/* Progress to next milestone */}
+      {nextMilestone !== null && streak > 0 && (
+        <div className="mt-4">
+          <div className="mb-1 flex justify-between text-[10px] text-muted-foreground/50">
+            <span>{streak}d</span>
+            <span>{nextMilestone - streak} day{nextMilestone - streak !== 1 ? 's' : ''} to {nextMilestone}d milestone</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
+            <div
+              className="h-full rounded-full bg-orange-500 transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Milestone badges */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {STREAK_MILESTONES.map((m) => {
+          const active   = streak >= m;
+          const achieved = longest >= m;
+          return (
+            <div
+              key={m}
+              title={`${m}-day milestone`}
+              className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition ${
+                active
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : achieved
+                    ? 'bg-orange-100 text-orange-500 dark:bg-orange-950/40 dark:text-orange-400'
+                    : 'bg-muted/50 text-muted-foreground/30'
+              }`}
+            >
+              {m}d
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
@@ -348,21 +442,18 @@ export default function StatsPage() {
         </div>
       ) : (
         <>
+          {/* Streak banner */}
+          <StreakBanner agg={agg} />
+
           {/* Weekly report */}
           <WeeklyReport history={history} tasks={tasks} />
 
           {/* Stat cards */}
-          <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <StatCard label="Sessions"   value={String(agg.sessions)} />
             <StatCard label="Focus time" value={formatFocusTime(agg.totalFocusedMs)} accent="text-green-600" />
             <StatCard label="Avg score"  value={String(avgScore)}  accent={getFocusGrade(avgScore).color} />
             <StatCard label="Best score" value={String(bestScore)} accent={getFocusGrade(bestScore).color} />
-            <StatCard
-              label="Streak"
-              value={`${agg.currentStreak}d`}
-              sub={`best ${agg.longestStreak}d`}
-              accent={agg.currentStreak > 0 ? 'text-orange-600' : 'text-muted-foreground'}
-            />
             <StatCard
               label="Tasks done"
               value={String(doneTasks)}

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { updateSessionNotes } from '@/lib/storage';
-import { SessionConfig, SessionStats } from '@/lib/types';
+import { loadAggregate, updateSessionNotes } from '@/lib/storage';
+import { AggregateStats, SessionConfig, SessionStats } from '@/lib/types';
 import { formatFocusTime, formatTime, getFocusGrade } from '@/lib/utils';
 import { computeDetailedScore } from '@/lib/focus-score';
 import { ScoreBreakdownPanel } from '@/components/score-breakdown';
@@ -37,6 +37,9 @@ export function SessionSummary({ sessionId, stats, config, onReset }: Props) {
     : 0;
 
   const [notes, setNotes] = useState(stats.notes ?? '');
+  const [agg, setAgg]     = useState<AggregateStats | null>(null);
+
+  useEffect(() => { setAgg(loadAggregate()); }, []);
 
   const handleNotesChange = (val: string) => {
     setNotes(val);
@@ -88,6 +91,20 @@ export function SessionSummary({ sessionId, stats, config, onReset }: Props) {
             <div className="mb-4 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-xs">
               <span className="text-muted-foreground">Working on </span>
               <span className="font-medium text-foreground">{stats.taskTitle}</span>
+            </div>
+          )}
+
+          {/* Streak */}
+          {agg && agg.currentStreak > 0 && (
+            <div className="mb-4 flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50/60 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/20">
+              <span className="flex items-center gap-2 text-sm font-semibold text-orange-700 dark:text-orange-400">
+                🔥 {agg.currentStreak} day streak
+              </span>
+              {agg.currentStreak > 1 && (
+                <span className="text-xs text-orange-500/70 dark:text-orange-400/60">
+                  {agg.currentStreak === agg.longestStreak ? 'Personal best!' : `Best: ${agg.longestStreak}d`}
+                </span>
+              )}
             </div>
           )}
 

@@ -1,9 +1,16 @@
-import { AggregateStats, SessionConfig, SessionHistoryItem, Task } from '@/lib/types';
+import { AggregateStats, CustomVideoMeta, SessionConfig, SessionHistoryItem, Task } from '@/lib/types';
 
-const SETTINGS_KEY = 'sahurlock.settings';
-const HISTORY_KEY  = 'sahurlock.history';
-const AGG_KEY      = 'sahurlock.aggregate';
-const TASKS_KEY    = 'sahurlock.tasks';
+const SETTINGS_KEY     = 'sahurlock.settings';
+const HISTORY_KEY      = 'sahurlock.history';
+const AGG_KEY          = 'sahurlock.aggregate';
+const TASKS_KEY        = 'sahurlock.tasks';
+const CUSTOM_VIDEO_KEY = 'sahurlock.custom_video';
+
+// In-memory blob URL for the current session — set by the settings page when
+// a custom video is loaded from IndexedDB so the session page can use it.
+let _customVideoBlobUrl: string | null = null;
+export const setCustomVideoBlobUrl = (url: string | null) => { _customVideoBlobUrl = url; };
+export const getCustomVideoBlobUrl = (): string | null     => _customVideoBlobUrl;
 
 const safeParse = <T>(raw: string | null, fallback: T): T => {
   if (!raw) return fallback;
@@ -115,6 +122,23 @@ export const updateAggregate = (input: {
     totalFocusScore:  (agg.totalFocusScore ?? 0) + input.focusScore,
   };
   localStorage.setItem(AGG_KEY, JSON.stringify(next));
+};
+
+// ── Custom video metadata ──────────────────────────────────────────────────────
+
+export const loadCustomVideoMeta = (): CustomVideoMeta | null => {
+  if (typeof window === 'undefined') return null;
+  return safeParse<CustomVideoMeta | null>(localStorage.getItem(CUSTOM_VIDEO_KEY), null);
+};
+
+export const saveCustomVideoMeta = (meta: CustomVideoMeta) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(CUSTOM_VIDEO_KEY, JSON.stringify(meta));
+};
+
+export const clearCustomVideoMeta = () => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(CUSTOM_VIDEO_KEY);
 };
 
 // ── Tasks ──────────────────────────────────────────────────────────────────────
